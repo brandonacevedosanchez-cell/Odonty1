@@ -1,0 +1,11 @@
+services:
+  odonty-frontend:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://odontyoriginal-1.onrender.com}
+    image: odonty-frontend:latest
+    container_name: odonty-frontend
+    ports:
+      - "8080:80"
+    restart: unless-stopped

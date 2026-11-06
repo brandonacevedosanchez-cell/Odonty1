@@ -1,0 +1,689 @@
+.module-section-heading,
+.module-toolbar,
+.calendar-toolbar,
+.calendar-navigation,
+.calendar-filters,
+.calendar-month__weekday,
+.calendar-month__cell,
+.calendar-time-grid__header,
+.calendar-time-grid__row,
+.odontogram-controls,
+.odontogram-arch__labels,
+.notifications-toolbar,
+.notifications-content {
+  display: flex;
+  align-items: center;
+}
+
+.calendar-time-grid--day .calendar-time-grid__header,
+.calendar-time-grid--day .calendar-time-grid__row {
+  grid-template-columns: 64px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.module-section-heading,
+.module-toolbar,
+.calendar-toolbar,
+.notifications-toolbar {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.module-section-heading .panel__title,
+.module-toolbar .panel__title,
+.notifications-toolbar .panel__title {
+  margin-bottom: 4px;
+}
+
+.module-muted {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.module-search {
+  width: min(100%, 420px);
+}
+
+.module-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.module-form-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.module-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.calendar-navigation {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calendar-title {
+  margin-left: 8px;
+  font-size: 17px;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.module-segmented,
+.module-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--slate-100);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.module-segmented button,
+.module-tabs button {
+  padding: 7px 11px;
+  color: var(--slate-600);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.module-segmented button:hover,
+.module-tabs button:hover {
+  color: var(--slate-900);
+}
+
+.module-segmented button.module-segmented__active,
+.module-tabs button.module-tabs__active {
+  color: var(--blue-800);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.calendar-filters,
+.billing-filters {
+  align-items: end;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.calendar-filters .field,
+.billing-filters .field {
+  width: min(100%, 250px);
+}
+
+.calendar-month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+.calendar-month__weekday {
+  justify-content: center;
+  min-height: 38px;
+  color: var(--slate-600);
+  background: var(--slate-50);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.calendar-month__cell {
+  min-height: 92px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 10px;
+  color: var(--slate-800);
+  text-align: left;
+  background: var(--surface);
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.calendar-month__cell:hover {
+  background: var(--blue-50);
+}
+
+.calendar-month__cell--outside {
+  color: var(--slate-400);
+  background: var(--slate-50);
+}
+
+.calendar-time-grid {
+  max-height: 570px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.calendar-time-grid__header,
+.calendar-time-grid__row {
+  display: grid;
+  grid-template-columns: 64px repeat(7, minmax(80px, 1fr));
+  min-width: 660px;
+}
+
+.calendar-time-grid__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--slate-50);
+  border-bottom: 1px solid var(--border);
+}
+
+.calendar-time-grid__header > *,
+.calendar-time-grid__row > * {
+  padding: 8px 6px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+
+.calendar-time-grid__header > * {
+  font-size: 12px;
+}
+
+.calendar-time-grid__row {
+  min-height: 36px;
+  border-bottom: 1px solid var(--slate-100);
+}
+
+.calendar-time-grid__row > :first-child {
+  color: var(--slate-500);
+  font-size: 11px;
+}
+
+.calendar-caption {
+  margin-top: 12px;
+}
+
+.module-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.clinical-record-placeholder {
+  min-height: 320px;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+}
+
+.clinical-privacy-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--blue-800);
+  background: var(--blue-50);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.odontogram-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 16px;
+}
+
+.odontogram-layout > * {
+  min-width: 0;
+}
+
+.odontogram-controls {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.odontogram-arch {
+  margin-top: 30px;
+  padding: 24px 12px;
+  background: var(--slate-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.odontogram-arch__labels {
+  justify-content: space-between;
+  color: var(--slate-500);
+  font-size: 11px;
+}
+
+.odontogram-arch__labels span:nth-child(2) {
+  color: var(--slate-700);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tooth-row {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 22px;
+}
+
+.tooth-button {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 3px;
+  color: var(--slate-700);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.tooth-button svg {
+  width: clamp(22px, 3.2vw, 39px);
+  height: 39px;
+  fill: #fff;
+  stroke: var(--slate-400);
+  stroke-width: 1.5;
+  transition: fill 0.15s ease, stroke 0.15s ease, transform 0.15s ease;
+}
+
+.tooth-button svg path + path {
+  fill: none;
+  stroke: var(--slate-300);
+  stroke-width: 1.2;
+}
+
+.tooth-button:hover {
+  background: var(--blue-50);
+  border-color: var(--blue-200);
+}
+
+.tooth-button:hover svg {
+  stroke: var(--blue-600);
+  transform: translateY(-2px);
+}
+
+.tooth-button--selected {
+  color: var(--blue-800);
+  background: var(--blue-100);
+  border-color: var(--blue-500);
+}
+
+.tooth-button--selected svg {
+  fill: var(--blue-100);
+  stroke: var(--blue-700);
+}
+
+.odontogram-caption {
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.odontogram-details__icon,
+.notification-detail__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 12px;
+  color: var(--blue-700);
+  background: var(--blue-50);
+  border-radius: 12px;
+}
+
+.odontogram-details .panel__title {
+  margin-bottom: 10px;
+}
+
+.odontogram-details .detail {
+  grid-template-columns: 1fr;
+  gap: 2px;
+}
+
+.odontogram-details .detail dd {
+  font-size: 13px;
+}
+
+.tooth-surface-selector {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.tooth-surface-selector__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tooth-surface-selector__heading h3 {
+  color: var(--slate-800);
+  font-size: 14px;
+}
+
+.tooth-surface-selector__heading p {
+  margin-top: 3px;
+  color: var(--slate-500);
+  font-size: 11px;
+}
+
+.tooth-surface-selector__tooth {
+  padding: 5px 8px;
+  color: var(--blue-800);
+  background: var(--blue-50);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.whole-tooth-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  color: var(--slate-700);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.whole-tooth-toggle--selected {
+  color: var(--blue-800);
+  background: var(--blue-50);
+  border-color: var(--blue-500);
+}
+
+.whole-tooth-toggle__icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--blue-700);
+  background: var(--blue-100);
+  border-radius: 6px;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.whole-tooth-toggle__hint {
+  margin-left: auto;
+  color: var(--slate-500);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.tooth-surface-diagram {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding: 4px 0 18px;
+  background: var(--slate-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.tooth-surface-diagram svg {
+  display: block;
+  width: min(100%, 220px);
+  height: auto;
+}
+
+.tooth-surface-diagram__outline {
+  fill: #fff;
+  stroke: var(--slate-500);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.tooth-surface-region {
+  cursor: pointer;
+  outline: none;
+}
+
+.tooth-surface-region__shape {
+  fill: #f8fafc;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.tooth-surface-region:hover .tooth-surface-region__shape,
+.tooth-surface-region:focus .tooth-surface-region__shape {
+  fill: var(--blue-100);
+  stroke: var(--blue-600);
+}
+
+.tooth-surface-region--selected .tooth-surface-region__shape {
+  fill: var(--blue-500);
+  stroke: var(--blue-800);
+}
+
+.tooth-surface-region__label {
+  fill: var(--slate-700);
+  font-size: 12px;
+  font-weight: 750;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.tooth-surface-region--selected .tooth-surface-region__label {
+  fill: #fff;
+}
+
+.tooth-surface-diagram__orientation {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  left: 8px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--slate-500);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.tooth-surface-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.tooth-surface-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--slate-600);
+  font-size: 10px;
+}
+
+.tooth-surface-legend__swatch {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  background: #f8fafc;
+  border: 1px solid var(--slate-400);
+  border-radius: 3px;
+}
+
+.tooth-surface-legend__swatch--incisal,
+.tooth-surface-legend__swatch--occlusal {
+  background: var(--blue-100);
+  border-color: var(--blue-500);
+}
+
+.tooth-surface-legend__selected {
+  margin-left: auto;
+  color: var(--blue-700);
+  font-size: 9px;
+}
+
+.odontogram-details__note {
+  margin-top: 16px;
+  padding: 12px;
+  color: var(--slate-600);
+  background: var(--slate-50);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.notifications-panel {
+  min-height: 390px;
+}
+
+.notifications-content {
+  align-items: stretch;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.notifications-list {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.notification-list-head {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 75px;
+  gap: 12px;
+  padding: 12px 14px;
+  color: var(--slate-600);
+  background: var(--slate-50);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.notification-detail {
+  width: 300px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.notification-detail h3 {
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+@media (max-width: 900px) {
+  .odontogram-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .odontogram-details {
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 720px) {
+  .module-section-heading,
+  .module-toolbar,
+  .calendar-toolbar,
+  .notifications-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .module-toolbar,
+  .notifications-toolbar {
+    display: flex;
+  }
+
+  .module-search {
+    width: 100%;
+  }
+
+  .module-form-grid,
+  .calendar-filters,
+  .billing-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-filters,
+  .billing-filters {
+    display: grid;
+  }
+
+  .calendar-filters .field,
+  .billing-filters .field {
+    width: 100%;
+  }
+
+  .calendar-month__cell {
+    min-height: 60px;
+    padding: 7px;
+  }
+
+  .calendar-title {
+    width: 100%;
+    margin: 6px 0 0;
+  }
+
+  .odontogram-arch {
+    padding: 18px 4px;
+    overflow-x: auto;
+  }
+
+  .tooth-row {
+    justify-content: flex-start;
+    min-width: 580px;
+  }
+
+  .tooth-button {
+    min-width: 31px;
+  }
+
+  .tooth-button svg {
+    width: 26px;
+  }
+
+  .odontogram-arch__labels {
+    min-width: 580px;
+    padding: 0 8px;
+  }
+
+  .notifications-content {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .notification-detail {
+    width: 100%;
+    min-height: 160px;
+  }
+
+  .notification-list-head {
+    grid-template-columns: 100px minmax(0, 1fr) 58px;
+    gap: 6px;
+    padding: 10px 8px;
+    font-size: 9px;
+  }
+}
