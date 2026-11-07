@@ -56,3 +56,19 @@ export async function changePassword(currentPassword, newPassword) {
   });
   tokens.clearTokens();
 }
+
+/** POST /auth/forgot-password. Envía un código de 6 dígitos al correo (ruta pública). */
+export const requestPasswordReset = (email) =>
+  request('/auth/forgot-password', {
+    method: 'POST',
+    body: { email },
+    auth: false,
+  });
+
+/** POST /auth/reset-password. Código + contraseña nueva (ruta pública). */
+export const resetPassword = ({ email, code, newPassword }) =>
+  request('/auth/reset-password', {
+    method: 'POST',
+    body: { email, code, new_password: newPassword },
+    auth: false,
+  });

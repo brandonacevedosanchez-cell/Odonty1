@@ -82,6 +82,8 @@ export default function LoginPage() {
         </button>
         {slow && <Alert type="info">{SLOW_SERVER_MESSAGE}</Alert>}
         <p className="auth__register-link">
+          <Link to="/recuperar">¿Olvidaste tu contraseña?</Link>
+          <br />
           ¿Tienes una clínica? <Link to="/registro-clinica">Registrar mi clínica</Link>
         </p>
       </form>

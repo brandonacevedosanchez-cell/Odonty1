@@ -13,6 +13,7 @@ import RolesPage from '../modules/roles/RolesPage.jsx';
 import CreateUserPage from '../modules/usuarios/CreateUserPage.jsx';
 import UsersPage from '../modules/usuarios/UsersPage.jsx';
 import ForcedPasswordChangePage from '../pages/ForcedPasswordChangePage.jsx';
+import ForgotPasswordPage from '../pages/ForgotPasswordPage.jsx';
 import HomePage from '../pages/HomePage.jsx';
 import LoginPage from '../pages/LoginPage.jsx';
 import MfaPage from '../pages/MfaPage.jsx';
@@ -39,6 +40,7 @@ export default function AppRoutes() {
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/verificar-mfa" element={<MfaPage />} />
+        <Route path="/recuperar" element={<ForgotPasswordPage />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>
