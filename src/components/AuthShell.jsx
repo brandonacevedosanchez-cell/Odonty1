@@ -7,10 +7,14 @@ const HIGHLIGHTS = [
   { icon: 'audit', text: 'Historial de auditoría de las acciones administrativas' },
 ];
 
-/** Estructura común de las pantallas de acceso: panel de marca + tarjeta con el formulario. */
-export default function AuthShell({ title, subtitle, children, footer }) {
+/**
+ * Estructura común de las pantallas de acceso: panel de marca + tarjeta con el formulario.
+ * `wide` amplía la tarjeta para formularios largos (registro de clínica) manteniendo
+ * el mismo panel de marca y la misma escala tipográfica que el login.
+ */
+export default function AuthShell({ title, subtitle, children, footer, wide = false }) {
   return (
-    <div className="auth">
+    <div className={`auth ${wide ? 'auth--wide' : ''}`.trim()}>
       <section className="auth__brand" aria-hidden="true">
         <Logo size="lg" light />
         <h2 className="auth__tagline">Gestión odontológica clara, ordenada y segura.</h2>
@@ -27,7 +31,7 @@ export default function AuthShell({ title, subtitle, children, footer }) {
       </section>
 
       <section className="auth__panel">
-        <div className="auth__card">
+        <div className={`auth__card ${wide ? 'auth__card--wide' : ''}`.trim()}>
           <div className="auth__mobile-logo">
             <Logo />
           </div>

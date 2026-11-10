@@ -28,19 +28,22 @@ const FILE_FIELDS = [
 function FileField({ name, label, file, error, disabled, onChange }) {
   return (
     <div className={`field ${error ? 'field--error' : ''}`.trim()}>
-      <label className="field__label" htmlFor={name}>
-        {label}
+      <span className="field__label" id={`${name}-label`}>{label}</span>
+      <label className="file-control" htmlFor={name}>
+        <input
+          id={name}
+          className="sr-only"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+          onChange={(event) => onChange(name, event.target.files?.[0] ?? null)}
+          disabled={disabled}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? `${name}-error` : undefined}
+          aria-labelledby={`${name}-label`}
+        />
+        <span className="file-control__button" aria-hidden="true">Seleccionar archivo</span>
+        <span className="file-control__name">{file ? file.name : 'Sin archivo seleccionado'}</span>
       </label>
-      <input
-        id={name}
-        className="input"
-        type="file"
-        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-        onChange={(event) => onChange(name, event.target.files?.[0] ?? null)}
-        disabled={disabled}
-        aria-invalid={error ? 'true' : undefined}
-        aria-describedby={error ? `${name}-error` : undefined}
-      />
       {file && !error && <p className="field__hint">Archivo seleccionado: {file.name}</p>}
       {error && <p id={`${name}-error`} className="field__error" role="alert">{error}</p>}
     </div>
@@ -122,9 +125,10 @@ export default function RegisterClinicPage() {
       title="Registrar mi clínica"
       subtitle="Completa los datos de la clínica y de su administrador."
       footer={<Link to="/login" className="link-button">Volver al inicio de sesión</Link>}
+      wide
     >
       <Alert type="info">El administrador no podrá iniciar sesión hasta que la clínica sea aprobada.</Alert>
-      <form onSubmit={submit} noValidate className="form form--spaced">
+      <form onSubmit={submit} noValidate className="form clinic-form">
         {formError && (
           <Alert type="error">
             {formError}
@@ -136,118 +140,130 @@ export default function RegisterClinicPage() {
           </Alert>
         )}
 
-        <h2 className="panel__title">Datos de la clínica</h2>
-        <TextField
-          label="Nombre de la clínica"
-          value={values.clinic_name}
-          onChange={updateValue('clinic_name')}
-          onBlur={() => setTouched((current) => ({ ...current, clinic_name: true }))}
-          error={showError('clinic_name')}
-          disabled={submitting}
-        />
-        <div className="form__row">
-          <TextField
-            label="NIT"
-            value={values.nit}
-            onChange={updateValue('nit')}
-            onBlur={() => setTouched((current) => ({ ...current, nit: true }))}
-            error={showError('nit')}
-            inputMode="numeric"
-            disabled={submitting}
-          />
-          <TextField
-            label="Dígito de verificación"
-            value={values.nit_dv}
-            onChange={updateValue('nit_dv')}
-            onBlur={() => setTouched((current) => ({ ...current, nit_dv: true }))}
-            error={showError('nit_dv')}
-            inputMode="numeric"
-            maxLength={1}
-            hint={suggestedDv ? `Sugerencia según módulo 11: ${suggestedDv}. El servidor lo validará.` : 'Se calcula al ingresar un NIT numérico.'}
-            disabled={submitting}
-          />
-        </div>
-        {suggestedDv && (
-          <button
-            type="button"
-            className="link-button clinic-dv-suggestion"
-            onClick={() => {
-              setValues((current) => ({ ...current, nit_dv: suggestedDv }));
-              setServerErrors((current) => ({ ...current, nit_dv: '' }));
-            }}
-            disabled={submitting}
-          >
-            Usar dígito de verificación sugerido: {suggestedDv}
-          </button>
-        )}
+        <section className="clinic-form__section">
+          <h2 className="clinic-form__section-title">Datos de la clínica</h2>
+          <div className="clinic-form__grid">
+            <div className="clinic-form__span-2">
+              <TextField
+                label="Nombre de la clínica"
+                value={values.clinic_name}
+                onChange={updateValue('clinic_name')}
+                onBlur={() => setTouched((current) => ({ ...current, clinic_name: true }))}
+                error={showError('clinic_name')}
+                disabled={submitting}
+              />
+            </div>
+            <TextField
+              label="NIT"
+              value={values.nit}
+              onChange={updateValue('nit')}
+              onBlur={() => setTouched((current) => ({ ...current, nit: true }))}
+              error={showError('nit')}
+              inputMode="numeric"
+              disabled={submitting}
+            />
+            <TextField
+              label="Dígito de verificación"
+              value={values.nit_dv}
+              onChange={updateValue('nit_dv')}
+              onBlur={() => setTouched((current) => ({ ...current, nit_dv: true }))}
+              error={showError('nit_dv')}
+              inputMode="numeric"
+              maxLength={1}
+              hint={suggestedDv ? `Sugerencia según módulo 11: ${suggestedDv}. El servidor lo validará.` : 'Se calcula al ingresar un NIT numérico.'}
+              disabled={submitting}
+            />
+            {suggestedDv && (
+              <button
+                type="button"
+                className="link-button clinic-dv-suggestion clinic-form__span-2"
+                onClick={() => {
+                  setValues((current) => ({ ...current, nit_dv: suggestedDv }));
+                  setServerErrors((current) => ({ ...current, nit_dv: '' }));
+                }}
+                disabled={submitting}
+              >
+                Usar dígito de verificación sugerido: {suggestedDv}
+              </button>
+            )}
+          </div>
+        </section>
 
-        <h2 className="panel__title">Datos del administrador</h2>
-        <TextField
-          label="Correo electrónico"
-          type="email"
-          value={values.email}
-          onChange={updateValue('email')}
-          onBlur={() => setTouched((current) => ({ ...current, email: true }))}
-          error={showError('email')}
-          autoComplete="email"
-          disabled={submitting}
-        />
-        <TextField
-          label="Nombre completo"
-          value={values.full_name}
-          onChange={updateValue('full_name')}
-          onBlur={() => setTouched((current) => ({ ...current, full_name: true }))}
-          error={showError('full_name')}
-          autoComplete="name"
-          disabled={submitting}
-        />
-        <div className="form__row">
-          <TextField
-            label="Número de documento"
-            value={values.document_number}
-            onChange={updateValue('document_number')}
-            onBlur={() => setTouched((current) => ({ ...current, document_number: true }))}
-            error={showError('document_number')}
-            inputMode="numeric"
-            maxLength={10}
-            disabled={submitting}
-          />
-          <TextField
-            label="Teléfono"
-            value={values.phone_number}
-            onChange={updateValue('phone_number')}
-            onBlur={() => setTouched((current) => ({ ...current, phone_number: true }))}
-            error={showError('phone_number')}
-            inputMode="numeric"
-            maxLength={10}
-            hint="10 dígitos, sin prefijo."
-            disabled={submitting}
-          />
-        </div>
-        <PasswordField
-          label="Contraseña"
-          value={values.password}
-          onChange={updateValue('password')}
-          onBlur={() => setTouched((current) => ({ ...current, password: true }))}
-          error={showError('password')}
-          autoComplete="new-password"
-          hint="Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo."
-          disabled={submitting}
-        />
+        <section className="clinic-form__section">
+          <h2 className="clinic-form__section-title">Datos del administrador</h2>
+          <div className="clinic-form__grid">
+            <TextField
+              label="Correo electrónico"
+              type="email"
+              value={values.email}
+              onChange={updateValue('email')}
+              onBlur={() => setTouched((current) => ({ ...current, email: true }))}
+              error={showError('email')}
+              autoComplete="email"
+              disabled={submitting}
+            />
+            <TextField
+              label="Nombre completo"
+              value={values.full_name}
+              onChange={updateValue('full_name')}
+              onBlur={() => setTouched((current) => ({ ...current, full_name: true }))}
+              error={showError('full_name')}
+              autoComplete="name"
+              disabled={submitting}
+            />
+            <TextField
+              label="Número de documento"
+              value={values.document_number}
+              onChange={updateValue('document_number')}
+              onBlur={() => setTouched((current) => ({ ...current, document_number: true }))}
+              error={showError('document_number')}
+              inputMode="numeric"
+              maxLength={10}
+              disabled={submitting}
+            />
+            <TextField
+              label="Teléfono"
+              value={values.phone_number}
+              onChange={updateValue('phone_number')}
+              onBlur={() => setTouched((current) => ({ ...current, phone_number: true }))}
+              error={showError('phone_number')}
+              inputMode="numeric"
+              maxLength={10}
+              hint="10 dígitos, sin prefijo."
+              disabled={submitting}
+            />
+            <div className="clinic-form__span-2">
+              <PasswordField
+                label="Contraseña"
+                value={values.password}
+                onChange={updateValue('password')}
+                onBlur={() => setTouched((current) => ({ ...current, password: true }))}
+                error={showError('password')}
+                autoComplete="new-password"
+                hint="Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo."
+                disabled={submitting}
+              />
+            </div>
+          </div>
+        </section>
 
-        <h2 className="panel__title">Documentos requeridos</h2>
-        {FILE_FIELDS.map(({ name, label }) => (
-          <FileField
-            key={name}
-            name={name}
-            label={label}
-            file={files[name]}
-            error={showError(name)}
-            disabled={submitting}
-            onChange={updateFile}
-          />
-        ))}
-        <p className="field__hint">Archivos JPG, PNG o WEBP de máximo 5 MB cada uno.</p>
+        <section className="clinic-form__section">
+          <h2 className="clinic-form__section-title">Documentos requeridos</h2>
+          <div className="clinic-form__grid">
+            {FILE_FIELDS.map(({ name, label }) => (
+              <FileField
+                key={name}
+                name={name}
+                label={label}
+                file={files[name]}
+                error={showError(name)}
+                disabled={submitting}
+                onChange={updateFile}
+              />
+            ))}
+            <p className="field__hint clinic-form__span-2">Archivos JPG, PNG o WEBP de máximo 5 MB cada uno.</p>
+          </div>
+        </section>
 
         <button type="submit" className="btn btn--primary btn--block" disabled={submitting}>
           {submitting ? <Spinner size={16} /> : <Icon name="user-plus" size={17} />}

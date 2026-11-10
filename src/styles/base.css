@@ -6,16 +6,31 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  max-width: 100%;
 }
 
 body {
   margin: 0;
+  max-width: 100%;
+  overflow-x: clip;
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-width: 0;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
 }
 
 h1,

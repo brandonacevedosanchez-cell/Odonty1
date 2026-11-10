@@ -23,6 +23,16 @@ export default function AppLayout() {
     return () => document.removeEventListener('keydown', onKey);
   }, [sidebarOpen]);
 
+  // Evita que el fondo haga scroll mientras el menú lateral está abierto en móvil.
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [sidebarOpen]);
+
   const handleSignOut = useCallback(async () => {
     if (PREVIEW_MODE) {
       toast.info('El cierre de sesión está desactivado en la vista previa.');
