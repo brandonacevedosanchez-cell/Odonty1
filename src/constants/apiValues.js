@@ -15,6 +15,13 @@ export const ASSIGNABLE_USER_ROLES = Object.freeze([
 
 export const PATIENT_DOCUMENT_TYPES = Object.freeze(['TI', 'CC', 'CE', 'PA']);
 export const PATIENT_DOCUMENT_NUMBER_PATTERN = /^[0-9]{6,10}$/;
+
+/**
+ * El contrato no fija un enum para `gender` (solo máx. 20 caracteres).
+ * La UI envía el texto completo para que el dato sea legible en el backend.
+ */
+export const PATIENT_GENDERS = Object.freeze(['Masculino', 'Femenino']);
+
 export const PATIENT_BLOOD_TYPES = Object.freeze([
   'O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-',
 ]);

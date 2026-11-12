@@ -99,6 +99,16 @@ export const createPatient = (payload) =>
     body: clean(pick(payload, PATIENT_REGISTER_FIELDS)),
   });
 
+/**
+ * Vincula un paciente que ya existe como usuario en otra clínica.
+ *
+ * El contrato actual (docs/openapi.json) no publica un endpoint dedicado para
+ * vincular pacientes entre clínicas. La única vía disponible es POST /patients
+ * con PatientRegisterIn, que crea el perfil del paciente en la clínica actual.
+ * Si el backend agrega un endpoint específico, reemplazar esta función.
+ */
+export const linkPatient = (payload) => createPatient(payload);
+
 /** PATCH /patients/{id} (permiso patients.edit). Body: PatientUpdateIn. */
 export const updatePatient = (patientId, payload) =>
   request(`/patients/${encodeURIComponent(patientId)}`, {

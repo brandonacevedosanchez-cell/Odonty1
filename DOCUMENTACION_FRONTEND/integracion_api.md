@@ -42,7 +42,7 @@ Las rutas de esta sección están documentadas en el catálogo y el frontend las
 | Pacientes | `GET /patients` | Buscar y paginar pacientes; usa `X-Total-Count`. | Query `search`, `limit` (1–200), `offset` (≥0). | `PatientOut[]`. |
 | Pacientes | `GET /patients/check` | Comprobar si existe el usuario antes de registrarlo. | Query `email`, `document_number`. | El catálogo confirma esos parámetros y describe `PatientCheckOut`. |
 | Pacientes | `GET /patients/{patient_id}` | Cargar detalle para edición. | `patient_id` en la ruta. | El catálogo confirma la operación. |
-| Pacientes | `POST /patients` | Registrar paciente desde el módulo. | `PatientRegisterIn`: requiere `email`, `document_number` (6–10 dígitos), `full_name` (3–150) y `phone_number`; `document_type` es `TI`, `CC`, `CE` o `PA`; `blood_type` cumple `^(O|A|B|AB)[+-]$`; incluye los campos clínicos opcionales del esquema. | `PatientOut`. |
+| Pacientes | `POST /patients` | Registro rápido y vinculación de pacientes desde el módulo. | `PatientRegisterIn`: requiere `email`, `document_number` (6–10 dígitos), `full_name` (3–150) y `phone_number`; `document_type` es `TI`, `CC`, `CE` o `PA`; `gender` es texto libre de máximo 20 (la UI envía `Masculino` o `Femenino`); `eps` es texto libre de máximo 100; `blood_type` cumple `^(O|A|B|AB)[+-]$`; incluye los campos clínicos opcionales del esquema. | `PatientOut`. |
 | Pacientes | `PATCH /patients/{patient_id}` | Editar datos de paciente. | `PatientUpdateIn`: solo campos clínicos; no incluye email, nombre, documento ni teléfono. Los campos vacíos se envían como `null`. | `PatientOut`. |
 | Pacientes | `POST/GET/PATCH /patients/me` | Crear, consultar y editar el perfil propio. | `PatientCreateIn`/`PatientUpdateIn` contienen campos clínicos únicamente; no enviar documento ni teléfono. | `PatientOut`. |
 | Citas | `GET /appointments` | Cargar agenda y citas asociadas a un paciente. | Query opcional `scheduled_date`, `dentist_id`, `patient_id`. | El catálogo confirma filtros y respuesta `list[AppointmentOut]`; no anuncia `X-Total-Count`. |
@@ -60,6 +60,14 @@ Las rutas de esta sección están documentadas en el catálogo y el frontend las
 | Notificaciones | `GET /notifications` | Listar notificaciones; usa `X-Total-Count`. | Query `unread_only`, `limit` (1–200), `offset` (≥0). | `NotificationOut[]`. |
 | Notificaciones | `PATCH /notifications/{notification_id}/read` | Marcar una notificación como leída. | `notification_id` en la ruta; sin body. | El catálogo confirma la operación. |
 | Notificaciones | `POST /notifications` | Crear notificación. | Requiere `user_id`, `type` (texto libre, 2–40), `title` (3–150), `message` (mínimo 3); `appointment_id` y `patient_id` opcionales. | `NotificationOut`. |
+
+### Pacientes en varias clínicas
+
+`GET /patients/check` devuelve `user_exists`, `has_patient_profile` y `same_clinic`.
+
+- Si `user_exists` es falso, el paciente no existe: `POST /patients` crea el usuario y su perfil.
+- Si `user_exists` es verdadero y `same_clinic` es falso, el usuario pertenece a otra clínica: el frontend usa `POST /patients` para crear el perfil del paciente en la clínica actual. El contrato **no publica un endpoint dedicado de vinculación**; si el backend agrega uno, debe reemplazarse la función `linkPatient` de `src/services/patientsService.js`.
+- Solo se bloquea el alta cuando el usuario ya tiene perfil de paciente **en la misma clínica** (`user_exists && has_patient_profile && same_clinic`), porque en ese caso ya está registrado y debe buscarse en el listado.
 
 ### Errores de validación
 
