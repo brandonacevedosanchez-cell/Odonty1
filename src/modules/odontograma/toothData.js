@@ -1,3 +1,5 @@
+import { TOOTH_SURFACES } from '../../constants/apiValues.js';
+
 export const DENTITION = {
   permanent: {
     label: 'Permanente',
@@ -11,23 +13,32 @@ export const DENTITION = {
   },
 };
 
-export const SURFACE_KEYS = ['vestibular', 'lingual', 'mesial', 'distal'];
+/**
+ * Enum ToothSurface del contrato (docs/openapi.json).
+ * No existe `incisal` ni `lingual`: el borde incisal se registra como `oclusal`
+ * y la cara interna como `lingual_palatino`.
+ */
+export const SURFACE_KEYS = TOOTH_SURFACES.filter((surface) => surface !== 'oclusal');
+export const OCCLUSAL_SURFACE = TOOTH_SURFACES.find((surface) => surface === 'oclusal');
 
-export function getToothSurfaceType(toothNumber) {
-  const lastDigit = Number(String(toothNumber).slice(-1));
-  return lastDigit <= 3 ? 'incisal' : 'occlusal';
+export function isAnteriorTooth(toothNumber) {
+  return Number(String(toothNumber).slice(-1)) <= 3;
 }
 
-export function getToothSurfaces(toothNumber) {
-  return [...SURFACE_KEYS, getToothSurfaceType(toothNumber)];
+export function getToothSurfaceType() {
+  return OCCLUSAL_SURFACE;
+}
+
+export function getToothSurfaces() {
+  return [...SURFACE_KEYS, OCCLUSAL_SURFACE];
 }
 
 export function getSurfaceLabels(toothNumber, arch) {
   return {
     vestibular: 'Vestibular',
-    lingual: arch === 'upper' ? 'Palatina' : 'Lingual',
+    lingual_palatino: arch === 'upper' ? 'Palatina' : 'Lingual',
     mesial: 'Mesial',
     distal: 'Distal',
-    [getToothSurfaceType(toothNumber)]: getToothSurfaceType(toothNumber) === 'incisal' ? 'Incisal' : 'Oclusal',
+    oclusal: isAnteriorTooth(toothNumber) ? 'Incisal' : 'Oclusal',
   };
 }

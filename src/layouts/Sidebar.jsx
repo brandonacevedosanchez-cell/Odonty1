@@ -22,6 +22,7 @@ function NavItem({ item, onNavigate }) {
 export default function Sidebar({ open, onClose, onSignOut }) {
   const { can, user } = usePermissions();
   const clinicalPermissions = getPermissions(user);
+  const clinicalModules = CLINICAL_MODULES.filter((module) => clinicalPermissions.includes(module.permission));
 
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
@@ -49,12 +50,14 @@ export default function Sidebar({ open, onClose, onSignOut }) {
             </div>
           ))}
 
-          <div className="nav__section">
-            <p className="nav__title">Módulos clínicos</p>
-            {CLINICAL_MODULES.filter((module) => clinicalPermissions.includes(module.permission)).map((module) => (
-              <NavItem key={module.id} item={module} onNavigate={onClose} />
-            ))}
-          </div>
+          {clinicalModules.length > 0 && (
+            <div className="nav__section">
+              <p className="nav__title">Módulos clínicos</p>
+              {clinicalModules.map((module) => (
+                <NavItem key={module.id} item={module} onNavigate={onClose} />
+              ))}
+            </div>
+          )}
 
           <div className="nav__section">
             <p className="nav__title">Cuenta</p>

@@ -1,5 +1,7 @@
 // Validaciones del formulario según el contrato (sección 6). Las del backend son las que mandan.
 
+import { PATIENT_DOCUMENT_NUMBER_PATTERN } from '../constants/apiValues.js';
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function validateFullName(value) {
@@ -23,6 +25,18 @@ export function validateDocument(value) {
   if (!/^\d+$/.test(v)) return 'El documento solo puede contener números.';
   if (v.length < 5 || v.length > 10) return 'El documento debe tener entre 5 y 10 dígitos.';
   return '';
+}
+
+/** PatientRegisterIn exige ^[0-9]{6,10}$ para el documento del paciente. */
+export function validatePatientDocument(value) {
+  const v = String(value ?? '').trim();
+  if (!v) return 'El número de documento es obligatorio.';
+  if (!PATIENT_DOCUMENT_NUMBER_PATTERN.test(v)) return 'El documento debe tener entre 6 y 10 dígitos.';
+  return '';
+}
+
+export function validateRequired(value, label) {
+  return String(value ?? '').trim() ? '' : `${label} es obligatorio.`;
 }
 
 /** Quita espacios, guiones y el prefijo +57 opcional. */

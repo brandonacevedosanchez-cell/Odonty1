@@ -1004,3 +1004,64 @@
   }
 }
 
+
+/* ---------- Paginación y acciones de tabla ---------- */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.pagination__info,
+.pagination__page {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.pagination__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.module-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.module-filters .field {
+  min-width: 140px;
+}
+
+@media (max-width: 767px) {
+  .module-filters {
+    width: 100%;
+  }
+
+  .module-filters .field {
+    flex: 1;
+  }
+
+  .module-filters .btn {
+    flex: 1;
+  }
+
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

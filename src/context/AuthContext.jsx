@@ -142,8 +142,9 @@ export function AuthProvider({ children }) {
       signOut,
       updatePassword,
       retryBootstrap: bootstrap,
+      refreshUser: loadUser,
     }),
-    [user, status, initError, mfaToken, signIn, completeMfa, cancelMfa, signOut, updatePassword, bootstrap],
+    [user, status, initError, mfaToken, signIn, completeMfa, cancelMfa, signOut, updatePassword, bootstrap, loadUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

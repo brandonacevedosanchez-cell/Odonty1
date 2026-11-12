@@ -1,64 +1,146 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import { EmptyState, ErrorState, LoadingState } from '../../components/Feedback.jsx';
 import Icon from '../../components/Icon.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { changeUserRole, listUsers } from '../../services/usersService.js';
-import { ApiError, getErrorMessage } from '../../utils/errors.js';
-import { normalizeText } from '../../utils/format.js';
-import { PERMISSIONS, roleLabel, roleOptionsFor } from '../../utils/permissions.js';
+import { changeUserRole, listUsers, setUserActive, updateUser } from '../../services/usersService.js';
+import { getErrorMessage, getFieldErrors } from '../../utils/errors.js';
+import { ALL_ROLES, PERMISSIONS, roleLabel, roleOptionsFor } from '../../utils/permissions.js';
 import { PREVIEW_MODE } from '../../config/preview.js';
 import ChangeRoleDialog from './ChangeRoleDialog.jsx';
+import EditUserDialog from './EditUserDialog.jsx';
 import UsersTable from './UsersTable.jsx';
+
+const LIMIT = 10;
 
 export default function UsersPage() {
   const toast = useToast();
   const { user: me, can } = usePermissions();
-  const { data, setData, loading, error, reload } = useAsync(listUsers, { enabled: can(PERMISSIONS.USERS_VIEW) });
+  const canView = can(PERMISSIONS.USERS_VIEW);
+
   const [query, setQuery] = useState('');
-  const [target, setTarget] = useState(null);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [activeFilter, setActiveFilter] = useState('');
+  const [offset, setOffset] = useState(0);
+
+  const [roleTarget, setRoleTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [activeTarget, setActiveTarget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [dialogError, setDialogError] = useState('');
+  const [dialogFieldErrors, setDialogFieldErrors] = useState({});
 
-  const users = Array.isArray(data) ? data : [];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOffset(0);
+      setDebouncedQuery(query.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
-  // Búsqueda en el frontend sobre los datos ya cargados (el backend no pagina ni filtra).
-  const filtered = useMemo(() => {
-    const q = normalizeText(query.trim());
-    if (!q) return users;
-    return users.filter((u) => [u.full_name, u.email, u.document_number].some((value) => normalizeText(value).includes(q)));
-  }, [users, query]);
+  const { data, loading, error, reload } = useAsync(
+    () => listUsers({ search: debouncedQuery, role: roleFilter, isActive: activeFilter, limit: LIMIT, offset }),
+    { enabled: canView, deps: [debouncedQuery, roleFilter, activeFilter, offset] },
+  );
 
-  function openDialog(user) {
-    setDialogError('');
-    setTarget(user);
+  const users = Array.isArray(data?.data) ? data.data : [];
+  const total = Number.isFinite(data?.total) ? data.total : users.length;
+  const pages = Math.max(1, Math.ceil(total / LIMIT));
+  const page = Math.floor(offset / LIMIT) + 1;
+
+  function resetFilters() {
+    setQuery('');
+    setRoleFilter('');
+    setActiveFilter('');
+    setOffset(0);
   }
 
-  function closeDialog() {
-    if (saving) return;
-    setTarget(null);
+  function openRoleDialog(user) {
     setDialogError('');
+    setDialogFieldErrors({});
+    setRoleTarget(user);
+  }
+
+  function openEditDialog(user) {
+    setDialogError('');
+    setDialogFieldErrors({});
+    setEditTarget(user);
+  }
+
+  function openActiveDialog(user) {
+    setDialogError('');
+    setDialogFieldErrors({});
+    setActiveTarget(user);
+  }
+
+  function closeDialogs() {
+    if (saving) return;
+    setRoleTarget(null);
+    setEditTarget(null);
+    setActiveTarget(null);
+    setDialogError('');
+    setDialogFieldErrors({});
   }
 
   async function confirmRoleChange(newRole) {
-    if (!target || saving) return;
+    if (!roleTarget || saving) return;
     setSaving(true);
     setDialogError('');
+    setDialogFieldErrors({});
     try {
-      const updated = await changeUserRole(target.id, newRole);
-      // Se refleja el cambio confirmado por el backend y luego se sincroniza el listado.
-      const patch = updated && typeof updated === 'object' && updated.id === target.id ? updated : { role_name: newRole };
-      setData(users.map((u) => (u.id === target.id ? { ...u, ...patch } : u)));
-      toast.success(`El rol de ${target.full_name} ahora es ${roleLabel(newRole)}.`);
-      setTarget(null);
-      reload({ silent: true });
+      const updated = await changeUserRole(roleTarget.id, newRole);
+      toast.success(`El rol de ${roleTarget.full_name} ahora es ${roleLabel(newRole)}.`);
+      setRoleTarget(null);
+      await reload({ silent: true });
+      if (!updated) await reload();
     } catch (err) {
-      // Los datos mostrados no se tocan: se informa el motivo del rechazo del backend.
-      setDialogError(getErrorMessage(err));
-      if (err instanceof ApiError && err.status === 404) reload({ silent: true });
+      const fieldErrors = getFieldErrors(err);
+      setDialogFieldErrors(fieldErrors);
+      setDialogError(Object.keys(fieldErrors).length ? '' : getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmEdit(values) {
+    if (!editTarget || saving) return;
+    setSaving(true);
+    setDialogError('');
+    setDialogFieldErrors({});
+    try {
+      const updated = await updateUser(editTarget.id, values);
+      toast.success('Datos del trabajador actualizados.');
+      setEditTarget(null);
+      if (updated && typeof updated === 'object') await reload({ silent: true });
+      else await reload();
+    } catch (err) {
+      const fieldErrors = getFieldErrors(err);
+      setDialogFieldErrors(fieldErrors);
+      setDialogError(Object.keys(fieldErrors).length ? '' : getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmActiveChange() {
+    if (!activeTarget || saving) return;
+    setSaving(true);
+    setDialogError('');
+    setDialogFieldErrors({});
+    try {
+      await setUserActive(activeTarget.id, !activeTarget.is_active);
+      toast.success(activeTarget.is_active ? 'Cuenta desactivada.' : 'Cuenta activada.');
+      setActiveTarget(null);
+      await reload({ silent: true });
+    } catch (err) {
+      const fieldErrors = getFieldErrors(err);
+      setDialogFieldErrors(fieldErrors);
+      setDialogError(Object.keys(fieldErrors).length ? '' : getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -79,9 +161,9 @@ export default function UsersPage() {
       />
 
       <section className="panel">
-        <div className="toolbar">
-          <div className="search">
-            <Icon name="search" size={18} />
+        <div className="module-toolbar">
+          <label className="search module-search">
+            <Icon name="search" size={17} />
             <input
               type="search"
               className="search__input"
@@ -89,15 +171,26 @@ export default function UsersPage() {
               aria-label="Buscar usuarios por nombre, correo o documento"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              disabled={loading || Boolean(error)}
+              disabled={loading}
             />
-          </div>
-          <div className="toolbar__end">
-            {!loading && !error && (
-              <span className="toolbar__count">
-                {filtered.length} de {users.length} {users.length === 1 ? 'usuario' : 'usuarios'}
-              </span>
-            )}
+          </label>
+          <div className="module-filters">
+            <label className="field">
+              <span className="field__label">Rol</span>
+              <select className="input" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setOffset(0); }} disabled={loading}>
+                <option value="">Todos</option>
+                {ALL_ROLES.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span className="field__label">Estado</span>
+              <select className="input" value={activeFilter} onChange={(e) => { setActiveFilter(e.target.value); setOffset(0); }} disabled={loading}>
+                <option value="">Todas</option>
+                <option value="true">Activas</option>
+                <option value="false">Desactivadas</option>
+              </select>
+            </label>
+            <button type="button" className="btn btn--secondary" onClick={resetFilters} disabled={loading}>Limpiar</button>
             <button type="button" className="btn btn--secondary" onClick={() => reload()} disabled={loading}>
               <Icon name="refresh" size={16} /> Actualizar
             </button>
@@ -107,33 +200,70 @@ export default function UsersPage() {
         {loading && <LoadingState message="Cargando usuarios…" />}
         {!loading && error && <ErrorState message={error} onRetry={() => reload()} title="No se pudo cargar el listado" />}
         {!loading && !error && users.length === 0 && (
-          <EmptyState icon="users" title="Aún no hay usuarios" text="Cuando se registren trabajadores aparecerán aquí." />
-        )}
-        {!loading && !error && users.length > 0 && filtered.length === 0 && (
           <EmptyState
-            icon="search"
-            title="Sin resultados"
-            text="Ningún usuario coincide con tu búsqueda."
-            action={
-              <button type="button" className="btn btn--secondary" onClick={() => setQuery('')}>
-                Limpiar búsqueda
-              </button>
-            }
+            icon="users"
+            title={debouncedQuery || roleFilter || activeFilter ? 'Sin resultados' : 'Aún no hay usuarios'}
+            text={debouncedQuery || roleFilter || activeFilter ? 'Ningún usuario coincide con los filtros aplicados.' : 'Cuando se registren trabajadores aparecerán aquí.'}
+            action={(debouncedQuery || roleFilter || activeFilter) ? <button type="button" className="btn btn--secondary" onClick={resetFilters}>Limpiar filtros</button> : null}
           />
         )}
-        {!loading && !error && filtered.length > 0 && (
-          <UsersTable users={filtered} onChangeRole={openDialog} readOnly={PREVIEW_MODE} />
+        {!loading && !error && users.length > 0 && (
+          <>
+            <UsersTable
+              users={users}
+              onChangeRole={openRoleDialog}
+              onEdit={openEditDialog}
+              onToggleActive={openActiveDialog}
+              readOnly={PREVIEW_MODE}
+            />
+            <div className="pagination" role="navigation" aria-label="Paginación de usuarios">
+              <span className="pagination__info">{total > 0 ? `${offset + 1}–${Math.min(offset + LIMIT, total)} de ${total}` : '0 usuarios'}</span>
+              <div className="pagination__actions">
+                <button type="button" className="btn btn--secondary btn--sm" onClick={() => setOffset((current) => Math.max(0, current - LIMIT))} disabled={offset === 0 || loading}>Anterior</button>
+                <span className="pagination__page">Página {page} de {pages}</span>
+                <button type="button" className="btn btn--secondary btn--sm" onClick={() => setOffset((current) => current + LIMIT)} disabled={offset + LIMIT >= total || loading}>Siguiente</button>
+              </div>
+            </div>
+          </>
         )}
       </section>
 
       <ChangeRoleDialog
-        target={target}
-        roleOptions={target ? roleOptionsFor(me, target) : []}
+        target={roleTarget}
+        roleOptions={roleTarget ? roleOptionsFor(me, roleTarget) : []}
         loading={saving}
         error={dialogError}
+        fieldError={dialogFieldErrors.role}
         onConfirm={confirmRoleChange}
-        onCancel={closeDialog}
+        onCancel={closeDialogs}
       />
+
+      <EditUserDialog
+        target={editTarget}
+        loading={saving}
+        error={dialogError}
+        fieldErrors={dialogFieldErrors}
+        onConfirm={confirmEdit}
+        onCancel={closeDialogs}
+      />
+
+      <ConfirmDialog
+        open={Boolean(activeTarget)}
+        title={activeTarget?.is_active ? 'Desactivar cuenta' : 'Activar cuenta'}
+        confirmLabel={activeTarget?.is_active ? 'Desactivar' : 'Activar'}
+        loading={saving}
+        error={dialogError}
+        onCancel={closeDialogs}
+        onConfirm={confirmActiveChange}
+      >
+        <p>
+          {activeTarget?.is_active
+            ? 'El trabajador no podrá iniciar sesión mientras la cuenta esté desactivada.'
+            : 'El trabajador podrá volver a iniciar sesión con su contraseña actual.'}
+        </p>
+        {activeTarget && <p><strong>{activeTarget.full_name}</strong> · {activeTarget.email}</p>}
+        {dialogFieldErrors.is_active && <p className="field__error" role="alert">{dialogFieldErrors.is_active}</p>}
+      </ConfirmDialog>
     </>
   );
 }

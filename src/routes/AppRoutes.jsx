@@ -17,7 +17,10 @@ import ForgotPasswordPage from '../pages/ForgotPasswordPage.jsx';
 import HomePage from '../pages/HomePage.jsx';
 import LoginPage from '../pages/LoginPage.jsx';
 import MfaPage from '../pages/MfaPage.jsx';
+import MyClinicalHistoryPage from '../pages/MyClinicalHistoryPage.jsx';
+import MyPatientProfilePage from '../pages/MyPatientProfilePage.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
+import RegisterPatientPage from '../pages/RegisterPatientPage.jsx';
 import SettingsPage from '../pages/SettingsPage.jsx';
 import { PERMISSIONS } from '../utils/permissions.js';
 import { GuestRoute, ProtectedRoute, RequirePermission } from './guards.jsx';
@@ -36,6 +39,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/registro-clinica" element={<RegisterClinicPage />} />
+      <Route path="/registro" element={<RegisterPatientPage />} />
 
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<LoginPage />} />
@@ -61,6 +65,13 @@ export default function AppRoutes() {
           </Route>
           <Route element={<RequirePermission permission={PERMISSIONS.CLINICS_REVIEW} strict />}>
             <Route path="clinicas" element={<ClinicsPage />} />
+          </Route>
+
+          <Route element={<RequirePermission permission={PERMISSIONS.PATIENTS_SELF} strict />}>
+            <Route path="mi-perfil" element={<MyPatientProfilePage />} />
+          </Route>
+          <Route element={<RequirePermission permission={PERMISSIONS.CLINICAL_HISTORY_SELF} strict />}>
+            <Route path="mi-historia" element={<MyClinicalHistoryPage />} />
           </Route>
 
           {CLINICAL_MODULES.map((module) => {

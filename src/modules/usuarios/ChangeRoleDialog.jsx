@@ -8,11 +8,13 @@ import { roleLabel } from '../../utils/permissions.js';
  * Cambio de rol con confirmación: identifica al trabajador y muestra el rol actual y el nuevo.
  * El resultado final lo decide el backend; si rechaza, el error se muestra aquí y no se tocan los datos.
  */
-export default function ChangeRoleDialog({ target, roleOptions, loading, error, onConfirm, onCancel }) {
+export default function ChangeRoleDialog({ target, roleOptions, loading, error, fieldError, onConfirm, onCancel }) {
   const [newRole, setNewRole] = useState('');
+  const [dismissedError, setDismissedError] = useState(false);
 
   useEffect(() => {
     setNewRole('');
+    setDismissedError(false);
   }, [target?.id]);
 
   if (!target) return null;
@@ -35,7 +37,16 @@ export default function ChangeRoleDialog({ target, roleOptions, loading, error, 
         <span>Rol actual</span>
         <RoleBadge role={target.role_name} />
       </div>
-      <SelectField label="Nuevo rol" value={newRole} onChange={(e) => setNewRole(e.target.value)} disabled={loading}>
+      <SelectField
+        label="Nuevo rol"
+        value={newRole}
+        error={dismissedError ? '' : fieldError}
+        onChange={(event) => {
+          setDismissedError(true);
+          setNewRole(event.target.value);
+        }}
+        disabled={loading}
+      >
         <option value="">Selecciona un rol</option>
         {roleOptions.map((role) => (
           <option key={role} value={role}>

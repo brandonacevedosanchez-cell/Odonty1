@@ -19,21 +19,16 @@ test('preserva los 32 dientes permanentes y los 20 temporales sin duplicados', (
   assert.equal(DENTITION.primary.lower.length, 10);
 });
 
-test('clasifica dientes anteriores como incisales y posteriores como oclusales', () => {
-  const anteriorTeeth = ['11', '13', '21', '23', '31', '33', '41', '43', '51', '53', '61', '63', '71', '73', '81', '83'];
-  const posteriorTeeth = ['14', '18', '24', '28', '34', '38', '44', '48', '54', '55', '64', '65', '74', '75', '84', '85'];
+test('usa el enum ToothSurface del contrato en todas las piezas', () => {
+  const expected = ['vestibular', 'lingual_palatino', 'mesial', 'distal', 'oclusal'];
 
-  for (const tooth of anteriorTeeth) {
-    assert.equal(getToothSurfaceType(tooth), 'incisal', `pieza ${tooth}`);
-    assert.ok(getToothSurfaces(tooth).includes('incisal'));
-  }
-  for (const tooth of posteriorTeeth) {
-    assert.equal(getToothSurfaceType(tooth), 'occlusal', `pieza ${tooth}`);
-    assert.ok(getToothSurfaces(tooth).includes('occlusal'));
+  for (const tooth of ['11', '13', '16', '18', '51', '55', '71', '85']) {
+    assert.deepEqual(getToothSurfaces(tooth), expected, `pieza ${tooth}`);
+    assert.equal(getToothSurfaceType(tooth), 'oclusal', `pieza ${tooth}`);
   }
 });
 
-test('cada pieza permite seleccionar y deseleccionar sus cuatro caras y su cara incisal u oclusal', () => {
+test('cada pieza permite seleccionar y deseleccionar sus cinco superficies', () => {
   for (const toothNumber of ['11', '16']) {
     let selections = {};
     for (const surface of getToothSurfaces(toothNumber)) {
@@ -54,10 +49,10 @@ test('permite seleccionar y deseleccionar superficies y el diente completo por F
   selections = toggleToothSurface(selections, '11', 'vestibular');
   selections = toggleToothSurface(selections, '11', 'mesial');
   selections = toggleWholeTooth(selections, '11');
-  selections = toggleToothSurface(selections, '16', 'occlusal');
+  selections = toggleToothSurface(selections, '16', 'oclusal');
 
   assert.deepEqual(selections['11'], { wholeTooth: true, surfaces: ['vestibular', 'mesial'] });
-  assert.deepEqual(selections['16'], { wholeTooth: false, surfaces: ['occlusal'] });
+  assert.deepEqual(selections['16'], { wholeTooth: false, surfaces: ['oclusal'] });
 
   selections = toggleToothSurface(selections, '11', 'vestibular');
   selections = toggleWholeTooth(selections, '11');
@@ -69,17 +64,17 @@ test('permite seleccionar y deseleccionar superficies y el diente completo por F
 
 test('genera payload estable por número FDI con las superficies seleccionadas', () => {
   const selections = {
-    16: { wholeTooth: false, surfaces: ['distal', 'occlusal'] },
+    16: { wholeTooth: false, surfaces: ['distal', 'oclusal'] },
     11: { wholeTooth: true, surfaces: ['mesial'] },
   };
 
   assert.deepEqual(toToothSelectionPayload(selections), [
     { tooth_number: '11', whole_tooth: true, surfaces: ['mesial'] },
-    { tooth_number: '16', whole_tooth: false, surfaces: ['distal', 'occlusal'] },
+    { tooth_number: '16', whole_tooth: false, surfaces: ['distal', 'oclusal'] },
   ]);
 });
 
-test('ignora superficies que no corresponden al tipo de diente', () => {
-  const selections = toggleToothSurface({}, '11', 'occlusal');
-  assert.deepEqual(selections, {});
+test('ignora superficies fuera del enum ToothSurface', () => {
+  assert.deepEqual(toggleToothSurface({}, '11', 'incisal'), {});
+  assert.deepEqual(toggleToothSurface({}, '11', 'lingual'), {});
 });

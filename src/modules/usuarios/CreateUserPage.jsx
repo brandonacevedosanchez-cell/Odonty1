@@ -13,11 +13,9 @@ import { roleLabel } from '../../utils/permissions.js';
 import { PREVIEW_MODE } from '../../config/preview.js';
 import {
   hasErrors,
-  normalizePhone,
-  validateDocument,
   validateEmail,
   validateFullName,
-  validatePhone,
+  validateRequired,
   validateRole,
 } from '../../utils/validators.js';
 
@@ -45,8 +43,8 @@ export default function CreateUserPage() {
   const errors = {
     full_name: validateFullName(values.full_name),
     email: validateEmail(values.email),
-    document_number: validateDocument(values.document_number),
-    phone_number: validatePhone(values.phone_number),
+    document_number: validateRequired(values.document_number, 'El número de documento'),
+    phone_number: validateRequired(values.phone_number, 'El teléfono'),
     role: validateRole(values.role, assignableRoles),
   };
   const showError = (field) => serverErrors[field] || (touched[field] || touched.all ? errors[field] : '');
@@ -86,7 +84,7 @@ export default function CreateUserPage() {
         full_name: values.full_name.trim(),
         email: values.email.trim(),
         document_number: values.document_number.trim(),
-        phone_number: normalizePhone(values.phone_number),
+        phone_number: values.phone_number.trim(),
         role: values.role,
       });
       toast.success('Trabajador creado. Debe revisar su correo para obtener la contraseña temporal.');
@@ -154,9 +152,6 @@ export default function CreateUserPage() {
               onChange={update('document_number')}
               onBlur={blur('document_number')}
               error={showError('document_number')}
-              hint="Solo números, entre 5 y 10 dígitos."
-              inputMode="numeric"
-              maxLength={10}
               autoComplete="off"
               disabled={submitting}
             />
@@ -166,8 +161,6 @@ export default function CreateUserPage() {
               onChange={update('phone_number')}
               onBlur={blur('phone_number')}
               error={showError('phone_number')}
-              hint="10 dígitos, con o sin +57."
-              inputMode="tel"
               autoComplete="off"
               disabled={submitting}
             />

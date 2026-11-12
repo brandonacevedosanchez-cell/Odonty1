@@ -14,7 +14,9 @@ const QUICK_ACTIONS = [
   { id: 'create', label: 'Crear trabajador', text: 'Registra un nuevo trabajador de la clínica.', path: '/usuarios/nuevo', icon: 'user-plus', permission: PERMISSIONS.USERS_CREATE },
   { id: 'roles', label: 'Roles y permisos', text: 'Revisa qué puede hacer cada rol.', path: '/roles', icon: 'shield-check', permission: PERMISSIONS.USERS_VIEW },
   { id: 'audit', label: 'Auditoría', text: 'Historial de acciones administrativas.', path: '/auditoria', icon: 'audit', permission: PERMISSIONS.AUDIT_VIEW },
-  { id: 'settings', label: 'Mi cuenta', text: 'Datos de tu cuenta y cambio de contraseña.', path: '/configuracion', icon: 'settings' },
+  { id: 'my-profile', label: 'Mi perfil de paciente', text: 'Completa tus datos clínicos y de contacto.', path: '/mi-perfil', icon: 'user', permission: PERMISSIONS.PATIENTS_SELF },
+  { id: 'my-history', label: 'Mi historia clínica', text: 'Consulta las atenciones registradas por tu odontólogo.', path: '/mi-historia', icon: 'file-text', permission: PERMISSIONS.CLINICAL_HISTORY_SELF },
+  { id: 'settings', label: 'Mi cuenta', text: 'Datos de tu cuenta, MFA y cambio de contraseña.', path: '/configuracion', icon: 'settings' },
 ];
 
 export default function HomePage() {
@@ -32,8 +34,10 @@ export default function HomePage() {
           <h1 className="hero__title">Hola, {firstName(user?.full_name)}</h1>
           <p className="hero__text">
             {hasAdminAccess
-              ? 'Desde aquí puedes administrar a los trabajadores de la clínica y sus permisos.'
-              : 'Tu cuenta está activa. Las operaciones clínicas estarán disponibles al integrarse con el backend.'}
+              ? 'Desde aquí puedes administrar a los trabajadores de la clínica, la agenda y los módulos clínicos.'
+              : user?.role_name === 'usuario'
+                ? 'Desde aquí puedes completar tu perfil y consultar tu historia clínica.'
+                : 'Tu cuenta está activa. Consulta los módulos disponibles para tu rol.'}
           </p>
         </div>
         <div className="hero__role">
@@ -75,16 +79,23 @@ export default function HomePage() {
               Disponible
             </span>
           </div>
-          {clinicalModules.map((module) => (
-            <Link key={module.id} to={module.path} className="card card--link">
-              <span className="card__icon card__icon--muted">
-                <Icon name={module.icon} size={22} />
-              </span>
-              <h3 className="card__title">{module.label}</h3>
-              <p className="card__text">Interfaz disponible. Los datos y operaciones esperan el API correspondiente.</p>
-              <span className="card__cta">Abrir módulo <Icon name="arrow-right" size={15} /></span>
-            </Link>
-          ))}
+          {clinicalModules.map((module) => {
+            const pending = module.id === 'facturacion';
+            return (
+              <Link key={module.id} to={module.path} className="card card--link">
+                <span className={`card__icon ${pending ? 'card__icon--muted' : 'card__icon--ok'}`}>
+                  <Icon name={module.icon} size={22} />
+                </span>
+                <h3 className="card__title">{module.label}</h3>
+                <p className="card__text">
+                  {pending
+                    ? 'El catálogo actual no incluye endpoints financieros; la pantalla queda informativa.'
+                    : 'Conectado al backend de Odonty.'}
+                </p>
+                <span className="card__cta">Abrir módulo <Icon name="arrow-right" size={15} /></span>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </>

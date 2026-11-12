@@ -18,7 +18,7 @@ export function setAuthHandlers(next) {
 }
 
 /** Petición de bajo nivel: sin lógica de sesión. Lanza ApiError ante cualquier fallo. */
-async function send(path, { method = 'GET', body, token } = {}) {
+async function send(path, { method = 'GET', body, token, withMeta = false } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -43,7 +43,11 @@ async function send(path, { method = 'GET', body, token } = {}) {
     clearTimeout(timer);
   }
 
-  if (response.status === 204) return null;
+  const rawTotal = response.headers?.get?.('X-Total-Count');
+  const total = rawTotal !== null && rawTotal !== undefined && rawTotal !== '' ? Number(rawTotal) : null;
+  const meta = { data: null, total: Number.isFinite(total) ? total : null };
+
+  if (response.status === 204) return withMeta ? meta : null;
 
   let data = null;
   try {
@@ -62,7 +66,7 @@ async function send(path, { method = 'GET', body, token } = {}) {
     throw error;
   }
 
-  return data;
+  return withMeta ? { ...meta, data } : data;
 }
 
 let refreshPromise = null;
@@ -109,15 +113,15 @@ function expireSession() {
  *  - auth: false  → rutas públicas (login, refresh, logout...).
  *  - auth: true   → agrega Bearer; ante un 401 renueva UNA vez y reintenta UNA vez (sin bucles).
  */
-export async function request(path, options = {}) {
+async function requestWithSession(path, options, withMeta) {
   const { auth = true, ...rest } = options;
-  if (!auth) return send(path, rest);
+  if (!auth) return send(path, { ...rest, withMeta });
 
   let token = tokens.getAccessToken();
   if (!token) token = await refreshSession();
 
   try {
-    return await send(path, { ...rest, token });
+    return await send(path, { ...rest, token, withMeta });
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
 
@@ -126,10 +130,36 @@ export async function request(path, options = {}) {
     const freshToken = current && current !== token ? current : await refreshSession();
 
     try {
-      return await send(path, { ...rest, token: freshToken });
+      return await send(path, { ...rest, token: freshToken, withMeta });
     } catch (retryError) {
       if (retryError instanceof ApiError && retryError.status === 401) expireSession();
       throw retryError;
     }
   }
+}
+
+/**
+ * Petición normal: devuelve solo el cuerpo.
+ */
+export function request(path, options = {}) {
+  return requestWithSession(path, options, false);
+}
+
+/**
+ * Petición de listado: devuelve { data, total } donde `total` viene de
+ * la cabecera X-Total-Count (null si el backend no la expone).
+ */
+export function requestPaginated(path, options = {}) {
+  return requestWithSession(path, options, true);
+}
+
+/** Construye una query string omitiendo valores vacíos. */
+export function buildQuery(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    search.set(key, String(value));
+  });
+  const query = search.toString();
+  return query ? `?${query}` : '';
 }

@@ -1,6 +1,6 @@
 import { PERMISSIONS, ROLES } from '../utils/permissions.js';
 
-// Accesos clínicos propuestos para el frontend; el contrato actual no define estos permisos.
+// Módulos clínicos conectados a la API. `permission` decide su visibilidad.
 export const CLINICAL_MODULES = [
   { id: 'pacientes', label: 'Pacientes', path: '/pacientes', icon: 'users', description: 'Consulta y administración de pacientes.', permission: PERMISSIONS.PATIENTS_VIEW },
   { id: 'citas', label: 'Citas y agenda', path: '/citas', icon: 'calendar', description: 'Agenda de citas de la clínica.', permission: PERMISSIONS.APPOINTMENTS_VIEW },
@@ -27,6 +27,14 @@ export const NAV_SECTIONS = [
       { id: 'clinics', label: 'Clínicas', path: '/clinicas', icon: 'home', permission: PERMISSIONS.CLINICS_REVIEW, role: ROLES.SUPER_ADMIN },
     ],
   },
+  {
+    id: 'self',
+    title: 'Mi información',
+    items: [
+      { id: 'my-profile', label: 'Mi perfil de paciente', path: '/mi-perfil', icon: 'user', permission: PERMISSIONS.PATIENTS_SELF },
+      { id: 'my-history', label: 'Mi historia clínica', path: '/mi-historia', icon: 'file-text', permission: PERMISSIONS.CLINICAL_HISTORY_SELF },
+    ],
+  },
 ];
 
 const TITLES = [
@@ -35,6 +43,8 @@ const TITLES = [
   ['/roles', 'Roles y permisos'],
   ['/auditoria', 'Auditoría'],
   ['/clinicas', 'Revisión de clínicas'],
+  ['/mi-perfil', 'Mi perfil de paciente'],
+  ['/mi-historia', 'Mi historia clínica'],
   ['/configuracion', 'Configuración de la cuenta'],
   ...CLINICAL_MODULES.map((m) => [m.path, m.label]),
 ];

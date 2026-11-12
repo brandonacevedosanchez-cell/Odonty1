@@ -1,4 +1,4 @@
-export const PREVIEW_MODE = import.meta.env.VITE_PREVIEW_MODE === 'true';
+export const PREVIEW_MODE = import.meta.env?.VITE_PREVIEW_MODE === 'true';
 
 export const PREVIEW_USER = Object.freeze({
   id: 1,

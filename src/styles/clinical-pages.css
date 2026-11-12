@@ -852,3 +852,268 @@
   }
 }
 
+
+/* ---------- Resultados de búsqueda de paciente ---------- */
+.result-list,
+.record-list,
+.appointment-list,
+.appointment-chips,
+.notification-items {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--text);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.result-item:hover {
+  border-color: var(--blue-400);
+  background: var(--blue-50);
+}
+
+.result-item--active {
+  border-color: var(--blue-500);
+  background: var(--blue-50);
+}
+
+.result-item__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* ---------- Registros clínicos ---------- */
+.record-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.record-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--text);
+  text-align: left;
+  background: var(--slate-50);
+}
+
+.record-card__head:hover {
+  background: var(--blue-50);
+}
+
+.record-card__head--static {
+  cursor: default;
+}
+
+.record-card__body {
+  padding: 14px;
+}
+
+.record-card__note {
+  padding: 0 14px 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ---------- Agenda: chips y tarjetas ---------- */
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.calendar-week--day {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.calendar-week__column {
+  min-width: 0;
+  padding: 12px;
+  background: var(--slate-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.calendar-week__title {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--slate-700);
+  text-transform: capitalize;
+}
+
+.appointment-chip {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--text);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue-500);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.appointment-chip:hover {
+  background: var(--blue-50);
+}
+
+.appointment-list {
+  margin-top: 12px;
+}
+
+.appointment-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.appointment-card__time {
+  display: grid;
+  min-width: 78px;
+  gap: 2px;
+  color: var(--blue-800);
+}
+
+.appointment-card__time span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.appointment-card__body {
+  flex: 1;
+  min-width: 180px;
+}
+
+.appointment-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.appointment-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calendar-month__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  padding: 0 5px;
+  color: #fff;
+  background: var(--blue-600);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ---------- Odontograma con hallazgos ---------- */
+.tooth-button {
+  position: relative;
+}
+
+.tooth-button__dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  background: var(--danger);
+  border: 1px solid #fff;
+  border-radius: 50%;
+}
+
+.tooth-button--has-finding svg {
+  fill: #fff7ed;
+  stroke: #ea580c;
+}
+
+/* ---------- Notificaciones ---------- */
+.notifications-list.notification-items {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.notification-item {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--text);
+  text-align: left;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-items li:last-child .notification-item {
+  border-bottom: 0;
+}
+
+.notification-item:hover,
+.notification-item--active {
+  background: var(--blue-50);
+}
+
+.notification-item--unread {
+  box-shadow: inset 3px 0 0 var(--blue-500);
+}
+
+.notification-item__date {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.notification-item__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .notification-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .notification-item__date {
+    grid-column: 1 / -1;
+  }
+
+  .appointment-card__actions {
+    width: 100%;
+  }
+}

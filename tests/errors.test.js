@@ -32,7 +32,7 @@ test('502 muestra el detail legible del servicio externo', () => {
 });
 
 test('mensajes por defecto en español para 409, 423 y red', () => {
-  assert.match(new ApiError({ status: 409 }).message, /registrados/);
+  assert.match(new ApiError({ status: 409 }).message, /conflicto|existe/i);
   assert.match(new ApiError({ status: 423 }).message, /bloqueada/);
   assert.equal(new ApiError({ status: 0 }).isNetwork, true);
 });

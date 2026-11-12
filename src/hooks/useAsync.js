@@ -6,7 +6,7 @@ import { getErrorMessage } from '../utils/errors.js';
  * `fn` se ejecuta al montar (si `enabled`) y cada vez que se llama a `reload`.
  * `reload({ silent: true })` actualiza en segundo plano sin mostrar el indicador de carga.
  */
-export function useAsync(fn, { enabled = true } = {}) {
+export function useAsync(fn, { enabled = true, deps = [] } = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState('');
@@ -39,7 +39,9 @@ export function useAsync(fn, { enabled = true } = {}) {
     return () => {
       requestId.current += 1;
     };
-  }, [enabled, reload]);
+    // `deps` permite recargar cuando cambian filtros o páginas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, reload, ...deps]);
 
   return { data, setData, loading, error, reload };
 }

@@ -84,6 +84,8 @@ export default function LoginPage() {
         <p className="auth__register-link">
           <Link to="/recuperar">¿Olvidaste tu contraseña?</Link>
           <br />
+          ¿Eres paciente? <Link to="/registro">Crear mi cuenta</Link>
+          <br />
           ¿Tienes una clínica? <Link to="/registro-clinica">Registrar mi clínica</Link>
         </p>
       </form>

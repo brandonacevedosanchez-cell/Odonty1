@@ -105,7 +105,7 @@ export default function ToothSurfaceSelector({
                 ? REGIONS[`distal${distalSide}`]
                 : surface === 'vestibular'
                   ? REGIONS.vestibular
-                  : surface === 'lingual'
+                  : surface === 'lingual_palatino'
                     ? REGIONS.lingual
                     : REGIONS.center;
 
@@ -122,7 +122,7 @@ export default function ToothSurfaceSelector({
         </svg>
         <div className="tooth-surface-diagram__orientation" aria-hidden="true">
           <span>{labels.vestibular}</span>
-          <span>{labels.lingual}</span>
+          <span>{labels.lingual_palatino}</span>
         </div>
       </div>
 

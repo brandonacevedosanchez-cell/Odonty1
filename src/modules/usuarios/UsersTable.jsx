@@ -1,10 +1,12 @@
 import { PasswordBadge, RoleBadge, StatusBadge } from '../../components/Badges.jsx';
 import Icon from '../../components/Icon.jsx';
 import { usePermissions } from '../../hooks/usePermissions.js';
-import { roleOptionsFor } from '../../utils/permissions.js';
+import { PERMISSIONS, roleOptionsFor } from '../../utils/permissions.js';
 
-export default function UsersTable({ users, onChangeRole, readOnly = false }) {
-  const { user: me, roleChangeAccess } = usePermissions();
+export default function UsersTable({ users, onChangeRole, onEdit, onToggleActive, readOnly = false }) {
+  const { user: me, can, roleChangeAccess } = usePermissions();
+  const canEdit = can(PERMISSIONS.USERS_EDIT);
+  const canManageActive = can(PERMISSIONS.USERS_MANAGE_ACTIVE);
 
   return (
     <div className="table-wrap">
@@ -25,12 +27,16 @@ export default function UsersTable({ users, onChangeRole, readOnly = false }) {
           {users.map((u) => {
             const access = roleChangeAccess(u);
             const hasOptions = roleOptionsFor(me, u).length > 0;
-            const canChange = !readOnly && access.allowed && hasOptions;
+            const canChangeRole = !readOnly && access.allowed && hasOptions;
+            const isSelf = u.id === me?.id;
+            const isSuperAdmin = u.role_name === 'super_admin';
+            const canEditUser = !readOnly && canEdit && !isSuperAdmin;
+            const canToggleActive = !readOnly && canManageActive && !isSelf && !isSuperAdmin;
             return (
               <tr key={u.id}>
                 <td data-label="Nombre">
                   <span className="cell-strong">{u.full_name}</span>
-                  {u.id === me?.id && <span className="cell-tag">Tú</span>}
+                  {isSelf && <span className="cell-tag">Tú</span>}
                 </td>
                 <td data-label="Correo">{u.email}</td>
                 <td data-label="Documento">{u.document_number || '—'}</td>
@@ -45,16 +51,46 @@ export default function UsersTable({ users, onChangeRole, readOnly = false }) {
                   <PasswordBadge mustChange={u.must_change_password} />
                 </td>
                 <td data-label="Acciones">
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm"
-                    onClick={() => onChangeRole(u)}
-                    disabled={!canChange}
-                    title={readOnly ? 'Deshabilitado en la vista previa de solo lectura' : canChange ? 'Cambiar el rol de este usuario' : access.reason || 'No hay roles disponibles para asignar.'}
-                    aria-label={`Cambiar rol de ${u.full_name}`}
-                  >
-                    <Icon name="edit" size={15} /> Cambiar rol
-                  </button>
+                  <div className="table-actions">
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => onEdit(u)}
+                      disabled={!canEditUser}
+                      title={readOnly ? 'Deshabilitado en la vista previa' : canEditUser ? 'Editar datos del trabajador' : 'No puedes editar este usuario'}
+                      aria-label={`Editar ${u.full_name}`}
+                    >
+                      <Icon name="edit" size={15} /> Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => onChangeRole(u)}
+                      disabled={!canChangeRole}
+                      title={readOnly ? 'Deshabilitado en la vista previa de solo lectura' : canChangeRole ? 'Cambiar el rol de este usuario' : access.reason || 'No hay roles disponibles para asignar.'}
+                      aria-label={`Cambiar rol de ${u.full_name}`}
+                    >
+                      <Icon name="shield" size={15} /> Rol
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => onToggleActive(u)}
+                      disabled={!canToggleActive}
+                      title={
+                        readOnly
+                          ? 'Deshabilitado en la vista previa de solo lectura'
+                          : isSelf
+                            ? 'No puedes desactivar tu propia cuenta'
+                            : isSuperAdmin
+                              ? 'No se puede desactivar al superadministrador'
+                              : u.is_active ? 'Desactivar cuenta' : 'Activar cuenta'
+                      }
+                      aria-label={`${u.is_active ? 'Desactivar' : 'Activar'} a ${u.full_name}`}
+                    >
+                      <Icon name={u.is_active ? 'lock' : 'check-circle'} size={15} /> {u.is_active ? 'Desactivar' : 'Activar'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             );

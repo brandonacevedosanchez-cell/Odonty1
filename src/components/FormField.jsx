@@ -1,6 +1,11 @@
 import { useId, useState } from 'react';
 import Icon from './Icon.jsx';
 
+export function FieldError({ error }) {
+  if (!error) return null;
+  return <p className="field__error" role="alert">{error}</p>;
+}
+
 /** Campo con etiqueta visible, ayuda y mensaje de error asociado (accesible). */
 export function FormField({ label, error, hint, children, htmlFor }) {
   return (

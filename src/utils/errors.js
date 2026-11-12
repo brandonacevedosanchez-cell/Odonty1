@@ -6,7 +6,7 @@ export const DEFAULT_MESSAGES = {
   401: 'Credenciales inválidas o sesión vencida.',
   403: 'No tienes permisos para realizar esta acción.',
   404: 'No se encontró el recurso solicitado.',
-  409: 'El correo o el número de documento ya están registrados.',
+  409: 'Ya existe un registro con esos datos o hay un conflicto con la operación. Revisa la información e inténtalo de nuevo.',
   422: 'Hay datos que no cumplen las reglas de validación.',
   423: 'La cuenta está bloqueada temporalmente por demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos.',
   500: 'Ocurrió un error interno en el servidor. Inténtalo de nuevo más tarde.',
@@ -95,4 +95,8 @@ function buildMessage(status, detail) {
 export function getErrorMessage(error) {
   if (error instanceof ApiError) return error.message;
   return 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+}
+
+export function getFieldErrors(error) {
+  return error instanceof ApiError && error.status === 422 ? error.fieldErrors : {};
 }

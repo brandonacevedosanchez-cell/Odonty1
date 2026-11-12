@@ -1,64 +1,410 @@
-import { useState } from 'react';
-import { EmptyState } from '../../components/Feedback.jsx';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, EmptyState, ErrorState, LoadingState, Spinner } from '../../components/Feedback.jsx';
 import Icon from '../../components/Icon.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
-import ModuleApiNotice from '../comun/ModuleApiNotice.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
+import { useAsync } from '../../hooks/useAsync.js';
+import { usePermissions } from '../../hooks/usePermissions.js';
+import {
+  checkPatient,
+  createPatient,
+  getPatient,
+  listPatients,
+  updatePatient,
+} from '../../services/patientsService.js';
+import { ApiError, getErrorMessage, getFieldErrors } from '../../utils/errors.js';
+import { PERMISSIONS } from '../../utils/permissions.js';
+import {
+  validateFullName,
+  validatePatientDocument,
+  validateRequired,
+} from '../../utils/validators.js';
+import PatientClinicalFields, { DOCUMENT_TYPES } from './PatientClinicalFields.jsx';
 
-const PATIENT_FIELDS = [
-  { label: 'Nombre completo', type: 'text' },
-  { label: 'Tipo de documento', type: 'text' },
-  { label: 'Número de documento', type: 'text' },
-  { label: 'Fecha de nacimiento', type: 'date' },
-  { label: 'Teléfono', type: 'tel' },
-  { label: 'Correo electrónico', type: 'email' },
-  { label: 'Dirección', type: 'text' },
-];
+const LIMIT = 10;
+const EMPTY = {
+  full_name: '',
+  document_type: 'CC',
+  document_number: '',
+  email: '',
+  phone_number: '',
+  birth_date: '',
+  gender: '',
+  blood_type: '',
+  address: '',
+  eps: '',
+  allergies: '',
+  notes: '',
+  guardian_full_name: '',
+  guardian_document_number: '',
+  guardian_phone: '',
+  guardian_relationship: '',
+  emergency_contact_name: '',
+  emergency_contact_phone: '',
+};
+
+function patientName(patient) {
+  return patient?.full_name ?? patient?.name ?? '—';
+}
+
+function patientDocument(patient) {
+  return [patient?.document_type, patient?.document_number].filter(Boolean).join(' ') || '—';
+}
 
 export default function PatientsPage() {
+  const toast = useToast();
+  const { can } = usePermissions();
+  const canView = can(PERMISSIONS.PATIENTS_VIEW);
+  const canCreate = can(PERMISSIONS.PATIENTS_CREATE);
+  const canEdit = can(PERMISSIONS.PATIENTS_EDIT);
+
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [offset, setOffset] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
+  const [values, setValues] = useState(EMPTY);
+  const [touched, setTouched] = useState({});
+  const [serverErrors, setServerErrors] = useState({});
+  const [formError, setFormError] = useState('');
+  const [check, setCheck] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [selected, setSelected] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [editValues, setEditValues] = useState(EMPTY);
+  const [editError, setEditError] = useState('');
+  const [editFieldErrors, setEditFieldErrors] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
+
+  const { data, loading, error, reload } = useAsync(
+    () => listPatients({ search: debouncedQuery, limit: LIMIT, offset }),
+    { enabled: canView, deps: [debouncedQuery, offset] },
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOffset(0);
+      setDebouncedQuery(query.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const patients = Array.isArray(data?.data) ? data.data : [];
+  const total = Number.isFinite(data?.total) ? data.total : patients.length;
+  const pages = Math.max(1, Math.ceil(total / LIMIT));
+  const page = Math.floor(offset / LIMIT) + 1;
+
+  const errors = useMemo(
+    () => ({
+      full_name: validateFullName(values.full_name),
+      email: validateRequired(values.email, 'El correo electrónico'),
+      document_number: validatePatientDocument(values.document_number),
+      phone_number: validateRequired(values.phone_number, 'El teléfono'),
+    }),
+    [values],
+  );
+  const showError = (field) => serverErrors[field] || (touched[field] || touched.all ? errors[field] : '');
+
+  const update = (field) => (event) => {
+    setValues((current) => ({ ...current, [field]: event.target.value }));
+    setServerErrors((current) => ({ ...current, [field]: '' }));
+    setCheck(null);
+  };
+  const updateClinical = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }));
+    setServerErrors((current) => ({ ...current, [field]: '' }));
+    setEditFieldErrors((current) => ({ ...current, [field]: '' }));
+  };
+  const blur = (field) => () => setTouched((current) => ({ ...current, [field]: true }));
+
+  function openCreate() {
+    setValues(EMPTY);
+    setTouched({});
+    setServerErrors({});
+    setFormError('');
+    setCheck(null);
+    setFormOpen(true);
+  }
+
+  async function verifyExisting() {
+    if (checking) return null;
+    if (!values.email.trim() && !values.document_number.trim()) {
+      setFormError('Ingresa el correo o el número de documento para verificar si el usuario ya existe.');
+      return null;
+    }
+    setChecking(true);
+    setFormError('');
+    try {
+      const result = await checkPatient({
+        email: values.email.trim(),
+        documentNumber: values.document_number.trim(),
+      });
+      setCheck(result ?? null);
+      return result;
+    } catch (checkError) {
+      setFormError(getErrorMessage(checkError));
+      return null;
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function handleCreate(event) {
+    event.preventDefault();
+    if (saving) return;
+    setTouched({ all: true });
+    setFormError('');
+    setServerErrors({});
+    if (Object.values(errors).some(Boolean)) return;
+
+    setSaving(true);
+    try {
+      const existing = check ?? await checkPatient({
+        email: values.email.trim(),
+        documentNumber: values.document_number.trim(),
+      });
+      setCheck(existing);
+      if (existing?.has_patient_profile) {
+        setFormError('Este usuario ya tiene un perfil de paciente. Búscalo en el listado para editarlo.');
+        return;
+      }
+      if (existing?.same_clinic === false) {
+        setFormError('El usuario existe pero pertenece a otra clínica. El backend debe validar si puede vincularse.');
+        return;
+      }
+
+      await createPatient({
+        ...values,
+        full_name: values.full_name.trim(),
+        email: values.email.trim(),
+        document_number: values.document_number.trim(),
+        phone_number: values.phone_number.trim(),
+      });
+      toast.success('Paciente registrado correctamente.');
+      setFormOpen(false);
+      setOffset(0);
+      reload();
+    } catch (createError) {
+      if (createError instanceof ApiError && createError.status === 422) {
+        setServerErrors(createError.fieldErrors);
+        if (Object.keys(createError.fieldErrors).length === 0) setFormError(createError.message);
+      } else {
+        setFormError(getErrorMessage(createError));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openPatient(patient) {
+    setSelected(patient);
+    setEditValues({ ...EMPTY, ...patient });
+    setEditError('');
+    setEditFieldErrors({});
+    setDetailLoading(true);
+    try {
+      const detail = await getPatient(patient.id);
+      if (detail) {
+        setSelected(detail);
+        setEditValues({ ...EMPTY, ...detail });
+      }
+    } catch (detailError) {
+      setEditError(getErrorMessage(detailError));
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function handleUpdate(event) {
+    event.preventDefault();
+    if (!selected || editSaving) return;
+    setEditSaving(true);
+    setEditError('');
+    setEditFieldErrors({});
+    try {
+      const updated = await updatePatient(selected.id, editValues);
+      toast.success('Datos del paciente actualizados.');
+      setSelected(updated && typeof updated === 'object' ? updated : { ...selected, ...editValues });
+      setEditValues((current) => ({ ...current, ...(updated && typeof updated === 'object' ? updated : {}) }));
+      reload({ silent: true });
+    } catch (updateError) {
+      const fieldErrors = getFieldErrors(updateError);
+      setEditFieldErrors(fieldErrors);
+      setEditError(Object.keys(fieldErrors).length ? '' : getErrorMessage(updateError));
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   return (
     <>
       <PageHeader
         title="Pacientes"
-        description="Consulta y administra la información de contacto de tus pacientes."
+        description="Consulta, registra y actualiza la información clínica de tus pacientes."
         actions={
-          <button type="button" className="btn btn--primary" onClick={() => setFormOpen((open) => !open)}>
-            <Icon name="plus" size={17} /> Registrar paciente
-          </button>
+          canCreate && (
+            <button type="button" className="btn btn--primary" onClick={openCreate}>
+              <Icon name="plus" size={17} /> Registrar paciente
+            </button>
+          )
         }
       />
-      <ModuleApiNotice moduleName="Pacientes">
-        No hay endpoint ni modelo de paciente disponible. No se consultan ni guardan datos; el formulario es solo una vista previa.
-      </ModuleApiNotice>
 
       {formOpen && (
         <section className="panel section" aria-labelledby="patient-form-heading">
           <div className="module-section-heading">
             <div>
-              <h2 className="panel__title" id="patient-form-heading">Datos del paciente</h2>
-              <p className="module-muted">Los campos y su obligatoriedad deben confirmarse con el contrato del backend.</p>
+              <h2 className="panel__title" id="patient-form-heading">Nuevo paciente</h2>
+              <p className="module-muted">Antes de guardar se verifica si el usuario ya existe en el sistema.</p>
             </div>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFormOpen(false)}>Cerrar formulario</button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFormOpen(false)} disabled={saving}>
+              Cerrar formulario
+            </button>
           </div>
-          <div className="module-form-grid">
-            {PATIENT_FIELDS.map((field) => (
-              <label className="field" key={field.name}>
-                <span className="field__label">{field.label}</span>
-                  <input className="input" type={field.type} autoComplete="off" />
+
+          <form onSubmit={handleCreate} noValidate className="form form--spaced">
+            {formError && <Alert type="error">{formError}</Alert>}
+            {check && (
+              <Alert type={check.has_patient_profile ? 'error' : 'info'}>
+                {check.has_patient_profile
+                  ? `El usuario ${check.full_name ?? ''} ya tiene perfil de paciente.`
+                  : check.user_exists
+                    ? `El usuario ${check.full_name ?? ''} ya existe y se vinculará a un nuevo perfil de paciente.`
+                    : 'No existe un usuario con esos datos; se creará uno nuevo con contraseña temporal.'}
+              </Alert>
+            )}
+
+            <div className="module-form-grid">
+              <label className="field">
+                <span className="field__label">Nombre completo</span>
+                <input
+                  className="input"
+                  value={values.full_name}
+                  onChange={update('full_name')}
+                  onBlur={blur('full_name')}
+                  disabled={saving}
+                  autoComplete="off"
+                  maxLength={150}
+                  required
+                />
+                {showError('full_name') && <p className="field__error">{showError('full_name')}</p>}
               </label>
-            ))}
-            <label className="field module-form-grid__wide">
-              <span className="field__label">Información adicional</span>
-                <textarea className="input module-textarea" />
-            </label>
+              <label className="field">
+                <span className="field__label">Tipo de documento</span>
+                <select className="input" value={values.document_type} onChange={update('document_type')} disabled={saving}>
+                  {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                </select>
+                {showError('document_type') && <p className="field__error">{showError('document_type')}</p>}
+              </label>
+              <label className="field">
+                <span className="field__label">Número de documento</span>
+                <input
+                  className="input"
+                  value={values.document_number}
+                  onChange={update('document_number')}
+                  onBlur={blur('document_number')}
+                  disabled={saving}
+                  inputMode="numeric"
+                  maxLength={10}
+                  autoComplete="off"
+                  required
+                />
+                {showError('document_number') && <p className="field__error">{showError('document_number')}</p>}
+              </label>
+              <label className="field">
+                <span className="field__label">Correo electrónico</span>
+                <input
+                  className="input"
+                  type="email"
+                  value={values.email}
+                  onChange={update('email')}
+                  onBlur={blur('email')}
+                  disabled={saving}
+                  autoComplete="off"
+                  required
+                />
+                {showError('email') && <p className="field__error">{showError('email')}</p>}
+              </label>
+              <label className="field">
+                <span className="field__label">Teléfono</span>
+                <input
+                  className="input"
+                  type="tel"
+                  value={values.phone_number}
+                  onChange={update('phone_number')}
+                  onBlur={blur('phone_number')}
+                  disabled={saving}
+                  autoComplete="off"
+                  required
+                />
+                {showError('phone_number') && <p className="field__error">{showError('phone_number')}</p>}
+              </label>
+            </div>
+
+            <div className="module-form-grid section">
+              <PatientClinicalFields
+                values={values}
+                onChange={updateClinical}
+                disabled={saving}
+                showDocumentType={false}
+                errors={serverErrors}
+              />
+            </div>
+
+            <div className="form__actions">
+              <button type="button" className="btn btn--secondary" onClick={verifyExisting} disabled={saving || checking}>
+                {checking ? <Spinner size={16} /> : <Icon name="search" size={16} />} Verificar usuario
+              </button>
+              <button type="button" className="btn btn--secondary" onClick={() => setFormOpen(false)} disabled={saving}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn--primary" disabled={saving}>
+                {saving ? <Spinner size={16} /> : <Icon name="user-plus" size={17} />}
+                {saving ? 'Guardando…' : 'Guardar paciente'}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {selected && (
+        <section className="panel section" aria-labelledby="patient-detail-heading">
+          <div className="module-section-heading">
+            <div>
+              <h2 className="panel__title" id="patient-detail-heading">{patientName(selected)}</h2>
+              <p className="module-muted">Documento {patientDocument(selected)} · {selected.email || 'Sin correo'}</p>
+            </div>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelected(null)}>Cerrar detalle</button>
           </div>
-          <p className="module-muted">Sexo, estado y otros atributos se añadirán solo si están definidos en el modelo de pacientes.</p>
-          <div className="form__actions">
-            <button type="button" className="btn btn--secondary" onClick={() => setFormOpen(false)}>Cancelar</button>
-            <button type="button" className="btn btn--primary" disabled title="Pendiente de endpoint de pacientes">Guardar paciente</button>
-          </div>
+          {detailLoading && <LoadingState message="Cargando detalle del paciente…" showSlowNotice={false} />}
+          {editError && <Alert type="error">{editError}</Alert>}
+          {!detailLoading && (
+            <form onSubmit={handleUpdate} noValidate className="form form--spaced">
+              <p className="module-muted">
+                El nombre, el documento y el correo pertenecen al usuario y no se editan desde el perfil del paciente.
+              </p>
+              <div className="module-form-grid">
+                <PatientClinicalFields
+                  values={editValues}
+                  onChange={(field, value) => {
+                    setEditValues((current) => ({ ...current, [field]: value }));
+                    setEditFieldErrors((current) => ({ ...current, [field]: '' }));
+                  }}
+                  disabled={!canEdit || editSaving}
+                  errors={editFieldErrors}
+                />
+              </div>
+              {canEdit && (
+                <div className="form__actions">
+                  <button type="submit" className="btn btn--primary" disabled={editSaving}>
+                    {editSaving ? <Spinner size={16} /> : <Icon name="check" size={16} />}
+                    {editSaving ? 'Guardando…' : 'Guardar cambios'}
+                  </button>
+                </div>
+              )}
+            </form>
+          )}
         </section>
       )}
 
@@ -72,35 +418,72 @@ export default function PatientsPage() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por nombre, documento o teléfono"
+              placeholder="Buscar por nombre, correo o documento"
               aria-label="Buscar pacientes"
+              disabled={loading}
             />
           </label>
         </div>
-        <div className="table-wrap">
-          <table className="table table--responsive">
-            <thead>
-              <tr>
-                <th scope="col">Paciente</th>
-                <th scope="col">Documento</th>
-                <th scope="col">Contacto</th>
-                <th scope="col">Fecha de registro</th>
-                <th scope="col">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan="5">
-                  <EmptyState
-                    icon="users"
-                    title={query ? 'No hay resultados disponibles' : 'Aún no hay pacientes para mostrar'}
-                    text="La lista aparecerá cuando el backend publique el endpoint y existan registros reales."
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+
+        {loading && <LoadingState message="Cargando pacientes…" />}
+        {!loading && error && <ErrorState message={error} onRetry={() => reload()} title="No se pudo cargar el listado" />}
+        {!loading && !error && patients.length === 0 && (
+          <EmptyState
+            icon="users"
+            title={query ? 'Sin resultados' : 'Aún no hay pacientes'}
+            text={query ? 'Ningún paciente coincide con tu búsqueda.' : 'Cuando registres pacientes aparecerán aquí.'}
+          />
+        )}
+        {!loading && !error && patients.length > 0 && (
+          <>
+            <div className="table-wrap">
+              <table className="table table--responsive">
+                <thead>
+                  <tr>
+                    <th scope="col">Paciente</th>
+                    <th scope="col">Documento</th>
+                    <th scope="col">Contacto</th>
+                    <th scope="col">Nacimiento</th>
+                    <th scope="col">EPS</th>
+                    <th scope="col">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {patients.map((patient) => (
+                    <tr key={patient.id}>
+                      <td data-label="Paciente"><span className="cell-strong">{patientName(patient)}</span></td>
+                      <td data-label="Documento">{patientDocument(patient)}</td>
+                      <td data-label="Contacto">
+                        <span className="cell-wrap">{patient.email || '—'}</span>
+                      </td>
+                      <td data-label="Nacimiento">{patient.birth_date || '—'}</td>
+                      <td data-label="EPS">{patient.eps || '—'}</td>
+                      <td data-label="Acciones">
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => openPatient(patient)}>
+                          <Icon name="eye" size={15} /> {canEdit ? 'Ver / editar' : 'Ver detalle'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="pagination" role="navigation" aria-label="Paginación de pacientes">
+              <span className="pagination__info">
+                {total > 0 ? `${offset + 1}–${Math.min(offset + LIMIT, total)} de ${total}` : '0 pacientes'}
+              </span>
+              <div className="pagination__actions">
+                <button type="button" className="btn btn--secondary btn--sm" onClick={() => setOffset((current) => Math.max(0, current - LIMIT))} disabled={offset === 0 || loading}>
+                  Anterior
+                </button>
+                <span className="pagination__page">Página {page} de {pages}</span>
+                <button type="button" className="btn btn--secondary btn--sm" onClick={() => setOffset((current) => current + LIMIT)} disabled={offset + LIMIT >= total || loading}>
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </>
   );

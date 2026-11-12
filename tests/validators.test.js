@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizePhone, validateDocument, validateEmail, validateFullName, validatePassword, validatePhone, validateOtp,
+  normalizePhone, validateDocument, validateEmail, validateFullName, validatePassword, validatePatientDocument, validatePhone, validateOtp,
 } from '../src/utils/validators.js';
 
 test('nombre: 3 a 150 caracteres', () => {
@@ -22,6 +22,14 @@ test('documento: solo dígitos, 5 a 10', () => {
   assert.ok(validateDocument('12a45'));
   assert.equal(validateDocument('12345'), '');
   assert.equal(validateDocument('1234567890'), '');
+});
+
+test('documento de paciente: PatientRegisterIn exige 6 a 10 dígitos', () => {
+  assert.ok(validatePatientDocument('12345'));
+  assert.ok(validatePatientDocument('12345678901'));
+  assert.ok(validatePatientDocument('12a456'));
+  assert.equal(validatePatientDocument('123456'), '');
+  assert.equal(validatePatientDocument('1234567890'), '');
 });
 
 test('teléfono: 10 dígitos con o sin +57', () => {

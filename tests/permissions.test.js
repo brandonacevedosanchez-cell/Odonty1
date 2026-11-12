@@ -6,12 +6,14 @@ const superAdmin = { id: 1, role_name: 'super_admin' };
 const admin = { id: 2, role_name: 'admin' };
 const otherAdmin = { id: 3, role_name: 'admin' };
 const dentist = { id: 4, role_name: 'odontologo' };
+const receptionist = { id: 5, role_name: 'recepcionista' };
+const patient = { id: 6, role_name: 'usuario' };
 
-test('el bypass temporal permite visualizar todos los módulos a usuarios autenticados', () => {
-  for (const p of Object.values(PERMISSIONS)) assert.equal(can(superAdmin, p), true);
-  for (const p of Object.values(PERMISSIONS)) assert.equal(can(admin, p), true);
-  for (const p of Object.values(PERMISSIONS)) assert.equal(can(dentist, p), true);
-  assert.equal(can(admin, PERMISSIONS.USERS_CREATE), true);
+test('el bypass está desactivado: cada rol solo recibe sus permisos', () => {
+  assert.equal(can(admin, PERMISSIONS.USERS_VIEW), true);
+  assert.equal(can(admin, PERMISSIONS.AUDIT_VIEW), false);
+  assert.equal(can(admin, PERMISSIONS.CLINICS_REVIEW), false);
+  assert.equal(can(dentist, PERMISSIONS.USERS_VIEW), false);
   assert.equal(can(null, PERMISSIONS.USERS_VIEW), false);
   assert.equal(can(admin, 'unknown.permission'), false);
 });
@@ -23,12 +25,17 @@ test('la matriz de referencia conserva los permisos definidos por rol', () => {
   assert.ok(!getPermissions(dentist).includes(PERMISSIONS.USERS_VIEW));
 });
 
-test('la matriz clínica aprobada no concede permisos administrativos a odontólogos', () => {
+test('la matriz clínica del odontólogo incluye agenda, historia y odontograma sin administración', () => {
   assert.deepEqual(getPermissions(dentist), [
     PERMISSIONS.PATIENTS_VIEW,
     PERMISSIONS.APPOINTMENTS_VIEW,
+    PERMISSIONS.APPOINTMENTS_CREATE,
+    PERMISSIONS.APPOINTMENTS_EDIT,
     PERMISSIONS.CLINICAL_HISTORY_VIEW,
+    PERMISSIONS.CLINICAL_HISTORY_CREATE,
     PERMISSIONS.ODONTOGRAM_VIEW,
+    PERMISSIONS.ODONTOGRAM_CREATE,
+    PERMISSIONS.NOTIFICATIONS_VIEW,
   ]);
   assert.ok(!getPermissions(dentist).includes(PERMISSIONS.USERS_VIEW));
   assert.deepEqual(assignableRoles(dentist), []);
@@ -37,9 +44,13 @@ test('la matriz clínica aprobada no concede permisos administrativos a odontól
 test('la matriz propuesta de acceso clínico coincide con los roles acordados', () => {
   assert.ok(getPermissions(admin).includes(PERMISSIONS.BILLING_VIEW));
   assert.ok(!getPermissions(dentist).includes(PERMISSIONS.BILLING_VIEW));
-  assert.ok(getPermissions({ role_name: 'recepcionista' }).includes(PERMISSIONS.PATIENTS_VIEW));
-  assert.ok(!getPermissions({ role_name: 'recepcionista' }).includes(PERMISSIONS.CLINICAL_HISTORY_VIEW));
-  assert.deepEqual(getPermissions({ role_name: 'usuario' }), [PERMISSIONS.NOTIFICATIONS_VIEW]);
+  assert.ok(getPermissions(receptionist).includes(PERMISSIONS.PATIENTS_CREATE));
+  assert.ok(!getPermissions(receptionist).includes(PERMISSIONS.CLINICAL_HISTORY_VIEW));
+  assert.deepEqual(getPermissions(patient), [
+    PERMISSIONS.PATIENTS_SELF,
+    PERMISSIONS.CLINICAL_HISTORY_SELF,
+    PERMISSIONS.NOTIFICATIONS_VIEW,
+  ]);
 });
 
 test('admin solo asigna odontologo, recepcionista y usuario', () => {
@@ -69,7 +80,7 @@ test('admin puede cambiar el rol de un odontologo y no se le ofrece admin ni su 
   assert.ok(!options.includes('admin'));
 });
 
-test('el bypass abre la interfaz, pero los roles sin asignaciones permitidas no tienen opciones', () => {
-  assert.equal(roleChangeAccess(dentist, admin).allowed, true);
+test('un rol sin permiso de gestión no puede cambiar roles', () => {
+  assert.equal(roleChangeAccess(dentist, admin).allowed, false);
   assert.deepEqual(roleOptionsFor(dentist, admin), []);
 });
