@@ -1,8 +1,8 @@
 import { buildQuery, request, requestPaginated } from './apiClient.js';
-import { clampApiListLimit } from '../utils/pagination.js';
+import { clampApiListLimit, clampApiListOffset } from '../utils/pagination.js';
 
 /**
- * Capa de servicios de /notifications. Contrato: docs/openapi.json
+ * Capa de servicios de /notifications. Contrato API: 13-nov-2026.
  * (NotificationCreateIn, NotificationOut).
  *
  * NotificationCreateIn: user_id obligatorio; type 2–40; title 3–150;
@@ -27,9 +27,13 @@ const clean = (payload) =>
   );
 
 /** GET /notifications (Bearer). Devuelve { data, total }. */
-export const listNotifications = ({ unreadOnly = false, limit = 20, offset = 0 } = {}) =>
+export const listNotifications = ({ unreadOnly = false, limit = 50, offset = 0 } = {}) =>
   requestPaginated(
-    `/notifications${buildQuery({ unread_only: unreadOnly ? true : '', limit: clampApiListLimit(limit), offset })}`,
+    `/notifications${buildQuery({
+      unread_only: unreadOnly ? true : '',
+      limit: clampApiListLimit(limit),
+      offset: clampApiListOffset(offset),
+    })}`,
   );
 
 /** PATCH /notifications/{id}/read (Bearer). */

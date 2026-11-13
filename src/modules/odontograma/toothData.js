@@ -14,7 +14,7 @@ export const DENTITION = {
 };
 
 /**
- * Enum ToothSurface del contrato (docs/openapi.json).
+ * Enum ToothSurface del contrato API del 13-nov-2026.
  * No existe `incisal` ni `lingual`: el borde incisal se registra como `oclusal`
  * y la cara interna como `lingual_palatino`.
  */

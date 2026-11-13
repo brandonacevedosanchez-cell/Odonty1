@@ -853,7 +853,7 @@
 }
 
 
-/* ---------- Resultados de búsqueda de paciente ---------- */
+/* ---------- Resultados de bï¿½squeda de paciente ---------- */
 .result-list,
 .record-list,
 .appointment-list,
@@ -896,7 +896,7 @@
   min-width: 0;
 }
 
-/* ---------- Registros clínicos ---------- */
+/* ---------- Registros clï¿½nicos ---------- */
 .record-card {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1116,4 +1116,122 @@
   .appointment-card__actions {
     width: 100%;
   }
+}
+
+/* ---------- Alertas mÃ©dicas de pacientes ---------- */
+.alert--patient {
+  align-items: flex-start;
+  color: var(--warning);
+  background: var(--warning-bg);
+  border-color: #fde68a;
+}
+
+.alert--patient .alert__body {
+  display: grid;
+  gap: 6px;
+}
+
+.patient-alerts__intro {
+  margin: 0;
+  font-size: 13px;
+}
+
+.patient-alerts__list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.patient-alerts__list strong {
+  font-weight: 650;
+}
+
+.patient-minor-badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ---------- Secciones plegables de formularios ---------- */
+.form-collapsible {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--slate-50);
+}
+
+.form-collapsible > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  color: var(--blue-800);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.form-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-collapsible[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.form-collapsible__body {
+  padding: 0 14px 14px;
+  margin-top: 0;
+}
+
+.form-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Autocompletado CUPS ---------- */
+.cups-search__control {
+  position: relative;
+}
+
+.cups-search__control .input {
+  padding-right: 38px;
+}
+
+.cups-search__clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--slate-600);
+  background: var(--slate-100);
+  border-radius: 50%;
+}
+
+.cups-search__panel {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.cups-search__option {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  text-align: left;
+}
+
+.cups-search__code {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--blue-800);
 }

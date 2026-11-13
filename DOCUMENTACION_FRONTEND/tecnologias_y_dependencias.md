@@ -36,7 +36,7 @@
 - Pruebas en `tests/`: `apiClient.test.js`, `clinicValidation.test.js`, `errors.test.js`, `permissions.test.js` y `validators.test.js`.
 - No se identificó un script de lint, formato o type-check en los scripts de `package.json`.
 - No se declara una dependencia de pruebas externa; se usa `node:test`.
-- En la revisión ejecutada: **35 pruebas aprobadas, 0 fallidas**; `npm run build` finalizó correctamente.
+- En la revisión ejecutada: **63 pruebas aprobadas, 0 fallidas**; `npm run build` finalizó correctamente.
 
 ## Observaciones
 

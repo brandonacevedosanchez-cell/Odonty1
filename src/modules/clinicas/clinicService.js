@@ -8,6 +8,7 @@ import { request } from '../../services/apiClient.js';
  * @property {'pending_email' | 'pending_review' | 'active' | 'rejected' | 'suspended'} status
  * @property {string} cedula_url
  * @property {string} rut_url
+ * @property {string} camara_comercio_url
  */
 
 export const registerClinic = (formData) =>

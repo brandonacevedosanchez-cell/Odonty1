@@ -14,8 +14,6 @@ const QUICK_ACTIONS = [
   { id: 'create', label: 'Crear trabajador', text: 'Registra un nuevo trabajador de la clínica.', path: '/usuarios/nuevo', icon: 'user-plus', permission: PERMISSIONS.USERS_CREATE },
   { id: 'roles', label: 'Roles y permisos', text: 'Revisa qué puede hacer cada rol.', path: '/roles', icon: 'shield-check', permission: PERMISSIONS.USERS_VIEW },
   { id: 'audit', label: 'Auditoría', text: 'Historial de acciones administrativas.', path: '/auditoria', icon: 'audit', permission: PERMISSIONS.AUDIT_VIEW },
-  { id: 'my-profile', label: 'Mi perfil de paciente', text: 'Completa tus datos clínicos y de contacto.', path: '/mi-perfil', icon: 'user', permission: PERMISSIONS.PATIENTS_SELF },
-  { id: 'my-history', label: 'Mi historia clínica', text: 'Consulta las atenciones registradas por tu odontólogo.', path: '/mi-historia', icon: 'file-text', permission: PERMISSIONS.CLINICAL_HISTORY_SELF },
   { id: 'settings', label: 'Mi cuenta', text: 'Datos de tu cuenta, MFA y cambio de contraseña.', path: '/configuracion', icon: 'settings' },
 ];
 
@@ -35,9 +33,7 @@ export default function HomePage() {
           <p className="hero__text">
             {hasAdminAccess
               ? 'Desde aquí puedes administrar a los trabajadores de la clínica, la agenda y los módulos clínicos.'
-              : user?.role_name === 'usuario'
-                ? 'Desde aquí puedes completar tu perfil y consultar tu historia clínica.'
-                : 'Tu cuenta está activa. Consulta los módulos disponibles para tu rol.'}
+              : 'Tu cuenta está activa. Consulta los módulos disponibles para tu rol.'}
           </p>
         </div>
         <div className="hero__role">

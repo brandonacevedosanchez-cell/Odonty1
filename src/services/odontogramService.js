@@ -1,8 +1,8 @@
 import { buildQuery, request, requestPaginated } from './apiClient.js';
-import { clampApiListLimit } from '../utils/pagination.js';
+import { clampApiListLimit, clampApiListOffset } from '../utils/pagination.js';
 
 /**
- * Capa de servicios de /odontogram. Contrato: docs/openapi.json
+ * Capa de servicios de /odontogram. Contrato API: 13-nov-2026.
  * (OdontogramEntryCreateIn, OdontogramEntryOut, ToothSurface).
  *
  * `surface` es nullable: se envía como null para registrar el diente completo y,
@@ -38,9 +38,13 @@ export const getCurrentOdontogram = (patientId) =>
   request(`/odontogram/${encodeURIComponent(patientId)}`);
 
 /** GET /odontogram/{patient_id}/history (permiso odontogram.view). Devuelve { data, total }. */
-export const getOdontogramHistory = (patientId, { toothFdi, limit = 20, offset = 0 } = {}) =>
+export const getOdontogramHistory = (patientId, { toothFdi, limit = 50, offset = 0 } = {}) =>
   requestPaginated(
-    `/odontogram/${encodeURIComponent(patientId)}/history${buildQuery({ tooth_fdi: toothFdi, limit: clampApiListLimit(limit), offset })}`,
+    `/odontogram/${encodeURIComponent(patientId)}/history${buildQuery({
+      tooth_fdi: toothFdi,
+      limit: clampApiListLimit(limit),
+      offset: clampApiListOffset(offset),
+    })}`,
   );
 
 /** POST /odontogram (permiso odontogram.create). Body: OdontogramEntryCreateIn. */

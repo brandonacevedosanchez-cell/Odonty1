@@ -1,7 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizePhone, validateDocument, validateEmail, validateFullName, validatePassword, validatePatientDocument, validatePhone, validateOtp,
+  calculateAge,
+  isMinor,
+  normalizePhone,
+  validateBirthDate,
+  validateDocument,
+  validateEmail,
+  validateFullName,
+  validateOptionalText,
+  validatePassword,
+  validatePatientDocument,
+  validatePhone,
+  validateOtp,
 } from '../src/utils/validators.js';
 
 test('nombre: 3 a 150 caracteres', () => {
@@ -14,6 +25,7 @@ test('nombre: 3 a 150 caracteres', () => {
 test('correo', () => {
   assert.ok(validateEmail('no-es-correo'));
   assert.equal(validateEmail('a@b.co'), '');
+  assert.ok(validateEmail(`a@${'b'.repeat(252)}.co`));
 });
 
 test('documento: solo dígitos, 5 a 10', () => {
@@ -55,4 +67,26 @@ test('código OTP: exactamente 6 dígitos', () => {
   assert.ok(validateOtp('12345'));
   assert.ok(validateOtp('12345a'));
   assert.equal(validateOtp('123456'), '');
+});
+
+test('fecha de nacimiento obligatoria, válida y no futura', () => {
+  assert.ok(validateBirthDate(''));
+  assert.ok(validateBirthDate('01/01/2000'));
+  assert.ok(validateBirthDate('2999-01-01'));
+  assert.equal(validateBirthDate('2000-01-01'), '');
+});
+
+test('calcula la minoría de edad desde birth_date', () => {
+  const today = new Date('2026-11-13T00:00:00');
+  assert.equal(calculateAge('2000-01-01', today), 26);
+  assert.equal(calculateAge('2008-11-13', today), 18);
+  assert.equal(isMinor('2008-11-14', today), true);
+  assert.equal(isMinor('2008-11-13', today), false);
+  assert.equal(isMinor('', today), false);
+});
+
+test('texto opcional respeta el máximo del contrato', () => {
+  assert.equal(validateOptionalText('', 1000, 'Las alergias'), '');
+  assert.equal(validateOptionalText('x'.repeat(1000), 1000, 'Las alergias'), '');
+  assert.ok(validateOptionalText('x'.repeat(1001), 1000, 'Las alergias'));
 });

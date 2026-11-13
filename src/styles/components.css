@@ -576,7 +576,7 @@
   background: #ccfbf1;
 }
 
-.badge--role-usuario,
+
 .badge--role-unknown {
   color: var(--slate-600);
   background: var(--slate-100);

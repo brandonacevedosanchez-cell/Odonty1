@@ -62,3 +62,10 @@ test('usuarios usan el contrato real y limit no supera 200', async () => {
   assert.deepEqual(calls[4].body, { is_active: false });
   assert.equal(calls.every((call) => Boolean(call.authorization)), true);
 });
+
+test('listado usa limit 50 por defecto y no acepta offset negativo', async () => {
+  await listUsers({ offset: -3 });
+
+  assert.equal(calls[0].search.get('limit'), '50');
+  assert.equal(calls[0].search.get('offset'), '0');
+});

@@ -2,6 +2,7 @@ import Icon from '../../components/Icon.jsx';
 import { FieldError } from '../../components/FormField.jsx';
 import SearchableSelect from '../../components/SearchableSelect.jsx';
 import {
+  PATIENT_ALERT_MAX_LENGTH,
   PATIENT_BLOOD_TYPES,
   PATIENT_DOCUMENT_TYPES,
   PATIENT_GENDERS,
@@ -12,8 +13,12 @@ export const DOCUMENT_TYPES = PATIENT_DOCUMENT_TYPES;
 export const BLOOD_TYPES = PATIENT_BLOOD_TYPES;
 export const GENDER_OPTIONS = PATIENT_GENDERS;
 
+export function RequiredMark() {
+  return <span className="field__required" aria-hidden="true">*</span>;
+}
+
 function requiredMark(required) {
-  return required ? <span className="field__required" aria-hidden="true">*</span> : null;
+  return required ? <RequiredMark /> : null;
 }
 
 /** Select obligatorio de sexo. Solo acepta Masculino o Femenino. */
@@ -64,17 +69,28 @@ export function EpsField({ value, onChange, disabled = false, error = '', requir
   );
 }
 
+const ALERT_FIELDS = [
+  ['allergies', 'Alergias'],
+  ['current_medications', 'Medicamentos actuales'],
+  ['medical_conditions', 'Condiciones médicas'],
+];
+
 /**
- * Campos clínicos de PatientRegisterIn, PatientCreateIn y PatientUpdateIn.
- * `values` es el objeto del formulario y `onChange(field, value)` actualiza el estado.
+ * Campos clínicos de PatientCreateIn y PatientUpdateIn.
+ * Los cuatro datos del responsable solo se muestran (y se exigen) cuando el
+ * paciente es menor de edad según birth_date.
  */
 export default function PatientClinicalFields({
   values,
   onChange,
   disabled = false,
-  showDocumentType = true,
+  showDocumentType = false,
   showNotes = true,
+  showAlerts = true,
+  alertsCollapsible = false,
+  requireBirthDate = false,
   requireGender = false,
+  isMinor: isMinorPatient = false,
   errors = {},
 }) {
   const fieldError = (name) => <FieldError error={errors[name]} />;
@@ -83,6 +99,24 @@ export default function PatientClinicalFields({
     onChange: (event) => onChange(name, event.target.value),
     disabled,
   });
+
+  const alerts = (
+    <>
+      {ALERT_FIELDS.map(([name, label]) => (
+        <label className="field module-form-grid__wide" key={name}>
+          <span className="field__label">{label}</span>
+          <textarea
+            className="input module-textarea"
+            placeholder="Opcional"
+            maxLength={PATIENT_ALERT_MAX_LENGTH}
+            {...field(name)}
+          />
+          <span className="field__hint">Máximo {PATIENT_ALERT_MAX_LENGTH} caracteres.</span>
+          {fieldError(name)}
+        </label>
+      ))}
+    </>
+  );
 
   return (
     <>
@@ -96,8 +130,8 @@ export default function PatientClinicalFields({
         </label>
       )}
       <label className="field">
-        <span className="field__label">Fecha de nacimiento</span>
-        <input className="input" type="date" {...field('birth_date')} />
+        <span className="field__label">Fecha de nacimiento {requiredMark(requireBirthDate)}</span>
+        <input className="input" type="date" required={requireBirthDate} {...field('birth_date')} />
         {fieldError('birth_date')}
       </label>
       <label className="field">
@@ -132,37 +166,54 @@ export default function PatientClinicalFields({
         <input className="input" maxLength={255} placeholder="Opcional" {...field('address')} />
         {fieldError('address')}
       </label>
-      <label className="field module-form-grid__wide">
-        <span className="field__label">Alergias</span>
-        <textarea className="input module-textarea" placeholder="Opcional" {...field('allergies')} />
-        {fieldError('allergies')}
-      </label>
 
-      <div className="module-form-grid__wide module-muted">
-        <Icon name="users" size={15} /> Datos del acudiente (obligatorios si el paciente es menor de edad)
-      </div>
-      <label className="field">
-        <span className="field__label">Nombre del acudiente</span>
-        <input className="input" maxLength={150} placeholder="Opcional" {...field('guardian_full_name')} />
-        {fieldError('guardian_full_name')}
-      </label>
-      <label className="field">
-        <span className="field__label">Documento del acudiente</span>
-        <input className="input" placeholder="Opcional" {...field('guardian_document_number')} />
-        {fieldError('guardian_document_number')}
-      </label>
-      <label className="field">
-        <span className="field__label">Teléfono del acudiente</span>
-        <input className="input" type="tel" placeholder="Opcional" {...field('guardian_phone')} />
-        {fieldError('guardian_phone')}
-      </label>
-      <label className="field">
-        <span className="field__label">Parentesco</span>
-        <input className="input" maxLength={50} placeholder="Opcional" {...field('guardian_relationship')} />
-        {fieldError('guardian_relationship')}
-      </label>
+      {showAlerts && (
+        alertsCollapsible ? (
+          <details className="form-collapsible module-form-grid__wide">
+            <summary>
+              <Icon name="alert-circle" size={16} /> Alertas médicas (opcional)
+            </summary>
+            <div className="module-form-grid form-collapsible__body">{alerts}</div>
+          </details>
+        ) : (
+          <>
+            <div className="module-form-grid__wide module-muted form-group-title">
+              <Icon name="alert-circle" size={15} /> Alertas médicas
+            </div>
+            {alerts}
+          </>
+        )
+      )}
 
-      <div className="module-form-grid__wide module-muted">
+      {isMinorPatient && (
+        <>
+          <div className="module-form-grid__wide module-muted form-group-title">
+            <Icon name="users" size={15} /> Datos del responsable (obligatorios para menores de edad)
+          </div>
+          <label className="field">
+            <span className="field__label">Nombre del responsable <RequiredMark /></span>
+            <input className="input" maxLength={150} required {...field('guardian_full_name')} />
+            {fieldError('guardian_full_name')}
+          </label>
+          <label className="field">
+            <span className="field__label">Documento del responsable <RequiredMark /></span>
+            <input className="input" required {...field('guardian_document_number')} />
+            {fieldError('guardian_document_number')}
+          </label>
+          <label className="field">
+            <span className="field__label">Teléfono del responsable <RequiredMark /></span>
+            <input className="input" type="tel" required {...field('guardian_phone')} />
+            {fieldError('guardian_phone')}
+          </label>
+          <label className="field">
+            <span className="field__label">Parentesco <RequiredMark /></span>
+            <input className="input" maxLength={50} required {...field('guardian_relationship')} />
+            {fieldError('guardian_relationship')}
+          </label>
+        </>
+      )}
+
+      <div className="module-form-grid__wide module-muted form-group-title">
         <Icon name="info" size={15} /> Contacto de emergencia
       </div>
       <label className="field">

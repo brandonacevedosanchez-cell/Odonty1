@@ -48,10 +48,10 @@ export function EmptyState({ icon = 'info', title, text, action }) {
   );
 }
 
-export function Alert({ type = 'error', children, onClose }) {
+export function Alert({ type = 'error', className = '', children, onClose }) {
   const icon = type === 'success' ? 'check-circle' : type === 'info' ? 'info' : 'alert-circle';
   return (
-    <div className={`alert alert--${type}`} role={type === 'error' ? 'alert' : 'status'}>
+    <div className={`alert alert--${type} ${className}`.trim()} role={type === 'error' ? 'alert' : 'status'}>
       <Icon name={icon} size={18} />
       <div className="alert__body">{children}</div>
       {onClose && (

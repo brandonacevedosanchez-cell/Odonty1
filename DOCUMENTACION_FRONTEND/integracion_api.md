@@ -1,101 +1,228 @@
-# Integración con API
+# Integración con la API
+
+Este documento describe la integración del frontend con el contrato **Odonty API del 13 de noviembre de 2026**
+(44 endpoints). El archivo `docs/openapi.json` se conserva únicamente como referencia histórica: no es la fuente
+de verdad del contrato actual y la aplicación **no** consulta `/docs`, `/redoc` ni `/openapi.json` en ejecución.
 
 ## Configuración y transporte
 
-- `src/config/env.js` lee `VITE_API_URL`; si no se define, usa `https://odontyoriginal-1.onrender.com`. Se eliminan barras finales.
-- `.env.example` contiene esa misma URL base. Para cambiarla localmente, usar un `.env` local con `VITE_API_URL=...`.
-- `apiClient.js` usa `fetch`, agrega `Accept: application/json`, serializa objetos como JSON y usa `FormData` directamente para multipart.
-- Para rutas autenticadas agrega un token Bearer desde `tokenStorage.js`.
-- El timeout de solicitud está fijado en 90 segundos. Los errores se convierten en `ApiError`; la capa distingue red/timeout, errores HTTP y validaciones 422.
-- Para HTTP 204 devuelve `null`. Los errores 422 se convierten en mensajes por campo a partir de `detail[].loc/msg/type`.
-- Ante 401 intenta renovar la sesión y repetir una vez la llamada. Las renovaciones paralelas comparten la misma promesa para evitar reutilizar simultáneamente un refresh rotatorio.
-- Las respuestas de red, CORS y timeout tienen estado interno 0 y no se tratan como rechazo definitivo de autenticación. Fallos definitivos al renovar limpian tokens y notifican expiración.
+- `src/config/env.js` lee `VITE_API_URL` y elimina las barras finales. Es obligatorio definirla: localmente se usa
+  `http://localhost:8000` en `.env` y en producción `https://odontyoriginal-1.onrender.com` en el entorno de
+  despliegue; ninguna URL base está embebida como fallback de la aplicación.
+- `.env.example` ofrece la configuración local. La variable se incrusta en el bundle **al compilar**, no al ejecutar.
+  Si falta, las solicitudes muestran un error explícito de configuración.
+- `src/services/apiClient.js` usa `fetch`, envía `Accept: application/json` y serializa objetos como JSON.
+  Para multipart usa `FormData` directamente, sin fijar `Content-Type`, para que el navegador genere el boundary.
+- Las rutas protegidas agregan `Authorization: Bearer <access_token>` desde `tokenStorage.js`.
+- El timeout de solicitud es de 90 segundos (el plan gratuito del backend puede tardar en despertar).
+- HTTP 204 devuelve `null`. Los listados usan `requestPaginated`, que devuelve `{ data, total }` y lee
+  `X-Total-Count`; si el encabezado no llega, `total` es `null`.
+- Ante 401 se intenta `POST /auth/refresh` una sola vez y se reintenta la solicitud una sola vez. Las renovaciones
+  simultáneas comparten la misma promesa porque el refresh token rota en cada uso.
+- Un error de red, CORS o timeout se representa con estado interno `0` y **no** cierra la sesión. Solo un rechazo
+  explícito del refresh (400, 401, 403 o 422) la cierra.
+- Un `403` con `detail` objeto `{ code: "PASSWORD_CHANGE_REQUIRED" }` activa la pantalla de cambio obligatorio.
+- Los errores `422` (`detail` como lista con `loc`, `msg`, `type`) se convierten en mensajes por campo. El resto
+  de errores usa `detail` como texto.
 
-## Endpoints llamados por el código
+## Roles y autorización
 
-Las rutas siguientes se encontraron en servicios. Para pacientes, citas, historia clínica, odontograma, notificaciones y usuarios, los campos y restricciones se contrastaron con `docs/openapi.json`, que es la fuente de verdad del backend. Los pendientes indicados al final aplican solo a datos que el contrato realmente no define.
+Roles del contrato: `super_admin` (plataforma, sin clínica), `admin`, `odontologo` y `recepcionista`.
+Los pacientes **no son usuarios**: no tienen cuenta, contraseña ni login. El frontend ya no ofrece el rol
+`usuario`, aunque el contrato todavía lo acepte en `UserCreateIn` por compatibilidad.
 
-| Método y ruta | Autenticación en cliente | Propósito | Parámetros / cuerpo visible | Respuesta que usa el frontend |
-| --- | --- | --- | --- | --- |
-| `POST /auth/login` | Pública (`auth: false`) | Iniciar sesión. | JSON `{ email, password }`. | Si `mfa_required` y `mfa_token` están presentes, continúa a MFA; de lo contrario entrega tokens. Forma exacta: PENDIENTE DE CONFIRMAR CON BACKEND. |
-| `POST /auth/mfa/verify` | Pública | Completar MFA. | JSON `{ mfa_token, code }`; el código ingresado debe tener seis dígitos. | Par de tokens (`access_token`, `refresh_token`) esperado por `tokenStorage`. Confirmar con backend. |
-| `GET /auth/me` | Protegida | Obtener usuario actual/restaurar sesión. | Sin cuerpo. | El cliente lee `id`, `full_name`, `email`, `document_number`, `phone_number`, `role_name`, `is_active`, `must_change_password`; confirmar contrato exacto. |
-| `POST /auth/refresh` | Llamada de transporte sin Bearer explícito | Renovar y rotar tokens. | JSON `{ refresh_token }`. | Lee `access_token`; guarda también `refresh_token` si se devuelve. Confirmar esquema. |
-| `POST /auth/logout` | Pública; incluye token en cuerpo si existe | Solicitar cierre de sesión. | JSON `{ refresh_token }`. | El servicio documenta respuesta 204; limpia tokens locales aun si el servidor falla. |
-| `POST /auth/change-password` | Protegida | Cambiar contraseña. | JSON `{ current_password, new_password }`. | El servicio documenta 204; limpia tokens y vuelve a login. |
-| `GET /users` | Protegida | Listar usuarios. | Query `search`, `role`, `is_active`, `limit` (1–200), `offset` (≥0). | Respuesta de usuario con `id`, `full_name`, `email`, `document_number`, `phone_number`, `role_name`, `is_active`, `must_change_password`; el cliente lee el total de `X-Total-Count`. |
-| `POST /users` | Protegida | Crear trabajador. | JSON `{ email, document_number, full_name, phone_number, role }`; `full_name` de 3–150 caracteres; rol `admin`, `odontologo`, `recepcionista` o `usuario`. No envía contraseña. | `UserOut`. |
-| `PATCH /users/{id}` | Protegida | Actualizar datos de usuario. | Campos opcionales `email`, `phone_number`, `full_name`; el cliente envía solo estos campos y usa `null` para limpiar valores vacíos. | `UserOut`. |
-| `PATCH /users/{id}/role` | Protegida | Cambiar rol. | `id` en URL; JSON `{ role }`; roles permitidos: `admin`, `odontologo`, `recepcionista`, `usuario` (nunca `super_admin`). | `UserOut`. |
-| `PATCH /users/{id}/active` | Protegida | Activar o desactivar usuario. | `id` en URL; JSON `{ is_active }`. | `UserOut`. |
-| `GET /users/audit-log?limit=100` | Protegida | Consultar auditoría, máximo solicitado 100. | Query `limit`, valor numérico; predeterminado 100. | Arreglo con campos leídos `id`, `user_id`, `action`, `detail`, `created_at`; confirmar contrato. |
-| `POST /clinics/register` | Pública (`auth: false`) | Enviar una solicitud de registro de clínica. | `multipart/form-data`: `clinic_name`, `nit`, `nit_dv`, `email`, `document_number`, `full_name`, `phone_number`, `password`, `cedula_file`, `rut_file`. | Se lee `detail` en éxito; esquema completo: PENDIENTE DE CONFIRMAR CON BACKEND. |
-| `GET /clinics/pending` | Protegida | Listar solicitudes pendientes de revisión. | Sin query visible. | El typedef frontend `ClinicOut` indica `{ id, name, nit, status, cedula_url, rut_url }`; confirmar tipos y respuesta. |
-| `PATCH /clinics/{id}/review` | Protegida | Aprobar o rechazar clínica. | `id` codificado en URL; JSON `{ approve: boolean }`. | Se usa opcionalmente `name` del resultado; esquema completo: PENDIENTE DE CONFIRMAR CON BACKEND. |
+El aislamiento por clínica lo aplica el backend: un usuario que no es `super_admin` solo ve datos de su clínica y
+un recurso de otra clínica responde 404. Ocultar rutas o botones en el frontend es solo ayuda visual.
 
-## Módulos clínicos conectados según el catálogo
+## Endpoints usados por el frontend
 
-Las rutas de esta sección están documentadas en el catálogo y el frontend las llama desde las páginas correspondientes. Los request/response siguen los modelos de `docs/openapi.json`.
+### Autenticación (`/auth`)
 
-| Módulo | Método y ruta | Uso en el frontend | Query/body usado por el cliente | Contrato por confirmar |
-| --- | --- | --- | --- | --- |
-| Pacientes | `GET /patients` | Buscar y paginar pacientes; usa `X-Total-Count`. | Query `search`, `limit` (1–200), `offset` (≥0). | `PatientOut[]`. |
-| Pacientes | `GET /patients/check` | Comprobar si existe el usuario antes de registrarlo. | Query `email`, `document_number`. | El catálogo confirma esos parámetros y describe `PatientCheckOut`. |
-| Pacientes | `GET /patients/{patient_id}` | Cargar detalle para edición. | `patient_id` en la ruta. | El catálogo confirma la operación. |
-| Pacientes | `POST /patients` | Registro rápido y vinculación de pacientes desde el módulo. | `PatientRegisterIn`: requiere `email`, `document_number` (6–10 dígitos), `full_name` (3–150) y `phone_number`; `document_type` es `TI`, `CC`, `CE` o `PA`; `gender` es texto libre de máximo 20 (la UI envía `Masculino` o `Femenino`); `eps` es texto libre de máximo 100; `blood_type` cumple `^(O|A|B|AB)[+-]$`; incluye los campos clínicos opcionales del esquema. | `PatientOut`. |
-| Pacientes | `PATCH /patients/{patient_id}` | Editar datos de paciente. | `PatientUpdateIn`: solo campos clínicos; no incluye email, nombre, documento ni teléfono. Los campos vacíos se envían como `null`. | `PatientOut`. |
-| Pacientes | `POST/GET/PATCH /patients/me` | Crear, consultar y editar el perfil propio. | `PatientCreateIn`/`PatientUpdateIn` contienen campos clínicos únicamente; no enviar documento ni teléfono. | `PatientOut`. |
-| Citas | `GET /appointments` | Cargar agenda y citas asociadas a un paciente. | Query opcional `scheduled_date`, `dentist_id`, `patient_id`. | El catálogo confirma filtros y respuesta `list[AppointmentOut]`; no anuncia `X-Total-Count`. |
-| Citas | `POST /appointments` | Crear cita. | Requiere `patient_id`, `dentist_id`, `scheduled_date`, `start_time`, `end_time`, `reason` (mínimo 3); `origin` opcional: `presencial`, `llamada` o `whatsapp` (default `presencial`). | `AppointmentOut`. |
-| Citas | `PATCH /appointments/{appointment_id}/reschedule` | Reprogramar una cita. | Requiere `scheduled_date`, `start_time`, `end_time`; no usa duración. | `AppointmentOut`. |
-| Citas | `PATCH /appointments/{appointment_id}/cancel` | Cancelar una cita. | JSON `{ cancellation_reason }`; mínimo 3 caracteres. | `AppointmentOut`. |
-| Citas | `PATCH /appointments/{appointment_id}/status` | Cambiar estado. | JSON `{ status }`; valores aceptados: `confirmada`, `atendida`, `no_asistio`. | `AppointmentOut`. El contrato no define el enum de `AppointmentOut.status`. |
-| Historia clínica | `GET /clinical-history` | Consultar historia paginada por paciente; usa `X-Total-Count`. | Query obligatoria `patient_id`, `limit` (1–200), `offset` (≥0). | `ClinicalEntryOut[]`. |
-| Historia clínica | `GET /clinical-history/{entry_id}` | Consultar el detalle de una entrada. | `entry_id` en la ruta. | El catálogo confirma la operación. |
-| Historia clínica | `POST /clinical-history` | Registrar consulta asociada a una cita. | Requiere `appointment_id`, `motivo_consulta`, `examen`, `diagnostico`, `tratamiento`; cada texto obligatorio tiene mínimo 3 caracteres. `antecedentes` es opcional. No envía `patient_id`. | `ClinicalEntryOut`. |
-| Historia clínica | `GET /clinical-history/me` | Consultar la historia del propio paciente. | Sin query ni body. | El catálogo confirma la operación. |
-| Odontograma | `GET /odontogram/{patient_id}` | Cargar el estado actual. | `patient_id` en la ruta. | El catálogo confirma la operación. |
-| Odontograma | `GET /odontogram/{patient_id}/history` | Consultar historial paginado; usa `X-Total-Count`. | Query opcional `tooth_fdi`, `limit` (1–200), `offset` (≥0). | `OdontogramEntryOut[]`. |
-| Odontograma | `POST /odontogram` | Registrar un hallazgo por cita, diente y superficie. | Requiere `appointment_id`, `tooth_fdi`; `surface` nullable (`vestibular`, `lingual_palatino`, `mesial`, `distal`, `oclusal`), `null` representa el diente completo. `condition_code`, `procedure_code` y `notes` son opcionales. | `OdontogramEntryOut`. El contrato no publica catálogos para los códigos; el frontend los mantiene como texto libre (TODO). |
-| Notificaciones | `GET /notifications` | Listar notificaciones; usa `X-Total-Count`. | Query `unread_only`, `limit` (1–200), `offset` (≥0). | `NotificationOut[]`. |
-| Notificaciones | `PATCH /notifications/{notification_id}/read` | Marcar una notificación como leída. | `notification_id` en la ruta; sin body. | El catálogo confirma la operación. |
-| Notificaciones | `POST /notifications` | Crear notificación. | Requiere `user_id`, `type` (texto libre, 2–40), `title` (3–150), `message` (mínimo 3); `appointment_id` y `patient_id` opcionales. | `NotificationOut`. |
+| Método y ruta | Uso | Cuerpo / parámetros | Respuesta usada |
+| --- | --- | --- | --- |
+| `POST /auth/login` | Iniciar sesión. | `{ email, password }`. | `TokenOut` o `MFALoginRequiredOut`. |
+| `POST /auth/mfa/verify` | Completar MFA. | `{ mfa_token, code }`; el código tiene 6 dígitos. | Par de tokens. |
+| `POST /auth/refresh` | Renovar y rotar tokens. | `{ refresh_token }`. | `access_token` y `refresh_token`. |
+| `POST /auth/logout` | Cerrar sesión. | `{ refresh_token }`. | 204; el cliente limpia tokens aunque falle. |
+| `GET /auth/me` | Restaurar sesión. | — | `UserOut`. Funciona con `must_change_password=true`. |
+| `POST /auth/change-password` | Cambiar contraseña. | `{ current_password, new_password }`. | 204; el backend revoca todas las sesiones. |
+| `POST /auth/forgot-password` | Solicitar código OTP. | `{ email }`. | `{ detail }`. |
+| `POST /auth/reset-password` | Restablecer con OTP. | `{ email, code, new_password }`. | `{ detail }`. |
+| `POST /auth/mfa/setup`, `/auth/mfa/enable`, `/auth/mfa/disable` | Configurar MFA. | Según `authService.js`. | `MFASetupOut` / 204. |
 
-### Pacientes en varias clínicas
+Contraseña temporal: mientras `must_change_password` sea `true`, el usuario solo puede usar `/auth/me` y
+`/auth/change-password`; cualquier otro endpoint protegido responde
+`403 {"detail": {"code": "PASSWORD_CHANGE_REQUIRED", ...}}`. La aplicación redirige a `/cambiar-contrasena`.
 
-`GET /patients/check` devuelve `user_exists`, `has_patient_profile` y `same_clinic`.
+### Usuarios y permisos (`/users`)
 
-- Si `user_exists` es falso, el paciente no existe: `POST /patients` crea el usuario y su perfil.
-- Si `user_exists` es verdadero y `same_clinic` es falso, el usuario pertenece a otra clínica: el frontend usa `POST /patients` para crear el perfil del paciente en la clínica actual. El contrato **no publica un endpoint dedicado de vinculación**; si el backend agrega uno, debe reemplazarse la función `linkPatient` de `src/services/patientsService.js`.
-- Solo se bloquea el alta cuando el usuario ya tiene perfil de paciente **en la misma clínica** (`user_exists && has_patient_profile && same_clinic`), porque en ese caso ya está registrado y debe buscarse en el listado.
+| Método y ruta | Permiso | Uso | Parámetros / cuerpo |
+| --- | --- | --- | --- |
+| `GET /users` | `users.view` | Listado paginado. | `search`, `role`, `is_active`, `limit`, `offset`. |
+| `POST /users` | `users.create` | Crear trabajador. | `{ email, document_number, full_name, phone_number, role }`; sin contraseña. |
+| `PATCH /users/{user_id}` | `users.edit` | Editar nombre, correo o teléfono. | Solo los campos enviados; `null` limpia. |
+| `PATCH /users/{user_id}/role` | `users.manage_role` | Cambiar rol. | `{ role }`; nunca `super_admin`. |
+| `PATCH /users/{user_id}/active` | `users.manage_active` | Activar o desactivar. | `{ is_active }`. |
+| `GET /users/audit-log?limit=100` | `audit.view` | Auditoría. | `limit` (máximo solicitado 100). |
 
-### Errores de validación
+Roles asignables desde la interfaz: `admin` solo para `super_admin`; `admin` asigna `odontologo` y
+`recepcionista`. Nunca se ofrece `usuario`.
 
-Las respuestas FastAPI `422` con `detail: [{ loc, msg, type }]` se convierten en mensajes junto al campo identificado por `loc` en los formularios de estos módulos. Los campos obligatorios y límites del cliente se derivan de `docs/openapi.json`; la API sigue siendo la autoridad de validación.
+### Clínicas (`/clinics`)
 
-### Pendientes confirmados en el contrato
+| Método y ruta | Autorización | Uso | Cuerpo / respuesta |
+| --- | --- | --- | --- |
+| `POST /clinics/register` | Pública | Registro de clínica y su admin. | `multipart/form-data` con los datos y **tres PDF**. |
+| `GET /clinics/pending` | `clinics.review` | Solicitudes en `pending_review`. | `ClinicOut[]` con `cedula_url`, `rut_url` y `camara_comercio_url`. |
+| `PATCH /clinics/{clinic_id}/review` | `clinics.review` | Aprobar o rechazar. | `{ approve: boolean }`; respuesta `ClinicOut`. |
 
-- `AppointmentOut.status` no publica un enum de valores; la interfaz muestra valores desconocidos tal como los recibe.
-- El contrato no define catálogos para `condition_code` ni `procedure_code`; se mantienen como texto libre hasta confirmación del backend.
-- No existe ruta de facturación ni de pagos en `docs/openapi.json`; el aviso de ese módulo se conserva.
+`POST /clinics/register` exige `clinic_name`, `nit`, `nit_dv`, `email`, `document_number`, `full_name`,
+`phone_number`, `password`, `cedula_file`, `rut_file` y `camara_comercio_file`. Los tres archivos deben ser
+`application/pdf`, no vacíos y de máximo 5 MB; el backend además valida la firma real del PDF. La respuesta 201 es
+`{ detail, clinic_id, clinic_status: "pending_review" }`.
 
-## Datos de formulario multipart
+Errores propios que la interfaz muestra tal como llegan:
 
-Los archivos de cédula y RUT deben ser JPG/JPEG, PNG o WEBP, no vacíos y de hasta 5 MB cada uno según la validación del frontend. La rutina de cliente no fija manualmente `Content-Type` para que el navegador genere el boundary multipart.
+- `400`: NIT no numérico, dígito de verificación incorrecto, nombre de clínica de menos de 3 caracteres, archivo
+  que no es PDF, archivo vacío, PDF inválido o archivo de más de 5 MB.
+- `409`: correo o documento ya existente, o NIT ya registrado.
+- `500`: rol `admin` ausente en el seed o registro no completado.
+- `502`: no se pudieron subir los documentos.
 
-## Modo de vista previa: importante
+El administrador de una clínica en `pending_review` no puede iniciar sesión: el login responde 403 con
+«Tu clinica aun no ha sido aprobada…». La revisión solo está disponible para `super_admin`.
 
-`PREVIEW_MODE` se activa únicamente cuando `VITE_PREVIEW_MODE=true`; `.env.example` lo deja en `false`. En modo preview:
+### Pacientes (`/patients`)
 
-- `AuthContext` inicia con un usuario demo y no invoca login, MFA ni restauración de usuario.
-- `usersService` devuelve usuarios/eventos fijos para listados, y rechaza creación/cambio de rol.
-- `ClinicsPage` omite su carga inicial. En cambio, `/registro-clinica` llama directamente a `registerClinic` y no consulta `PREVIEW_MODE`; visitar esa ruta sí puede enviar una solicitud al backend.
-- Las páginas clínicas siguen usando sus servicios reales, pero las rutas protegidas necesitan un token Bearer. El usuario demo no tiene sesión/token; para probar los endpoints hay que usar `VITE_PREVIEW_MODE=false`, iniciar sesión y tener los permisos correspondientes.
+| Método y ruta | Permiso | Uso | Parámetros / cuerpo |
+| --- | --- | --- | --- |
+| `POST /patients` | `patients.create` | Registrar paciente en la clínica del usuario. | `PatientCreateIn`. |
+| `GET /patients` | `patients.view` | Listado y búsqueda paginada. | `search`, `limit`, `offset`; total en `X-Total-Count`. |
+| `GET /patients/check` | `patients.create` | Verificar documento antes del alta. | `document_number` y `document_type` (`TI`, `CC`, `CE`, `PA`; por defecto `CC`). |
+| `GET /patients/{patient_id}` | `patients.view` | Detalle con alertas médicas. | `patient_id` en la ruta. |
+| `PATCH /patients/{patient_id}` | `patients.edit` | Edición parcial. | Solo los campos que cambian; `null` limpia opcionales. |
+| `GET /patients/{patient_id}/alerts` | `patients.view` | Alertas para historia clínica y odontograma. | `patient_id` en la ruta. |
 
-## Otros endpoints de autenticación
+`PatientCreateIn` exige `full_name` (3–150), `document_number` (`^[0-9]{6,10}$`), `email` (máx. 255),
+`phone_number`, `birth_date` y `gender` (`Masculino` o `Femenino`). `document_type` es opcional con default `CC`.
+Los campos clínicos opcionales son `blood_type`, `address` (máx. 255), `eps` (máx. 100), los cuatro datos del
+responsable, el contacto de emergencia, `allergies`, `current_medications`, `medical_conditions` (máx. 1000 cada
+uno) y `notes`.
 
-El cliente también incluye llamadas a `POST /auth/forgot-password`, `POST /auth/reset-password` y a `POST /auth/mfa/setup`, `/auth/mfa/enable` y `/auth/mfa/disable`. Los campos de request están definidos en `authService.js`; validar los esquemas y respuestas con el contrato/OpenAPI del backend.
+`PatientOut` incluye `clinic_id` (ya no `user_id`), `is_minor`, el teléfono y las tres alertas médicas.
+`PatientCheckOut` es exactamente `{ exists, patient_id, full_name }`.
+
+`PatientUpdateIn` permite editar también nombre, correo, documento y teléfono, además de los campos clínicos.
+El frontend envía únicamente los campos modificados. El backend revalida duplicados y la regla del responsable
+para menores; al limpiar un campo obligatorio responde 400 «El campo … no puede quedar vacio», que se muestra
+junto al campo. El 409 por documento duplicado también se asocia a `document_number`.
+
+Flujo de alta en `src/modules/pacientes/PatientsPage.jsx`:
+
+1. El formulario rápido captura nombres y apellidos por separado y los une en `full_name`.
+2. «Verificar paciente» llama a `GET /patients/check`. Si `exists=true` muestra
+   «Este paciente ya está registrado en tu clínica» y un enlace a su ficha.
+3. Si la verificación falla por red, no bloquea el alta: se intenta crear y se maneja el 409.
+4. Un 409 con «Ya existe un paciente con ese documento en esta clinica (id=…)» muestra el mensaje y el enlace
+   «Ir a su ficha» usando el id extraído.
+5. Si `birth_date` corresponde a un menor de 18 años se exigen `guardian_full_name`,
+   `guardian_document_number`, `guardian_phone` y `guardian_relationship` (máx. 50).
+6. Las alertas médicas son opcionales y se agrupan en una sección colapsable.
+
+Un mismo paciente puede existir en varias clínicas. El frontend no enlaza cuentas ni reutiliza registros de otra
+clínica: cada clínica lo registra de nuevo y `check` nunca revela pacientes de otras clínicas.
+
+### Citas (`/appointments`)
+
+| Método y ruta | Permiso | Uso | Cuerpo |
+| --- | --- | --- | --- |
+| `POST /appointments` | `appointments.create` | Crear cita. | `patient_id`, `dentist_id`, `scheduled_date`, `start_time`, `end_time`, `reason`; `origin` opcional. |
+| `GET /appointments` | `appointments.view` | Agenda y citas por paciente. | Query opcional `scheduled_date`, `dentist_id`, `patient_id`; devuelve un arreglo, sin `X-Total-Count`. |
+| `PATCH /appointments/{id}/reschedule` | `appointments.edit` | Reprogramar. | `scheduled_date`, `start_time`, `end_time`. |
+| `PATCH /appointments/{id}/cancel` | `appointments.edit` | Cancelar. | `{ cancellation_reason }` (mínimo 3). |
+| `PATCH /appointments/{id}/status` | `appointments.edit` | Cambiar estado. | `{ status }`: `confirmada`, `atendida` o `no_asistio`. |
+
+### Historia clínica (`/clinical-history`)
+
+| Método y ruta | Permiso | Uso | Parámetros / cuerpo |
+| --- | --- | --- | --- |
+| `GET /clinical-history` | `clinical_history.view` | Historia paginada por paciente. | `patient_id` obligatorio, `limit`, `offset`. |
+| `GET /clinical-history/{entry_id}` | `clinical_history.view` | Detalle de una entrada. | `entry_id` en la ruta. |
+| `POST /clinical-history` | `clinical_history.create` | Registrar consulta asociada a una cita. | `appointment_id`, `motivo_consulta`, `examen`, `diagnostico`, `tratamiento`; `antecedentes` opcional. |
+
+La historia clínica y el odontograma consultan `GET /patients/{id}/alerts` antes de atender. Si el servicio no
+está disponible, la interfaz avisa y permite reintentar sin mostrar datos de otro paciente.
+
+### Odontograma (`/odontogram`)
+
+| Método y ruta | Permiso | Uso | Parámetros / cuerpo |
+| --- | --- | --- | --- |
+| `GET /odontogram/{patient_id}` | `odontogram.view` | Estado actual por diente y superficie. | `patient_id` en la ruta. |
+| `GET /odontogram/{patient_id}/history` | `odontogram.view` | Historial paginado. | `tooth_fdi`, `limit`, `offset`. |
+| `POST /odontogram` | `odontogram.create` | Registrar hallazgo y/o procedimiento. | `appointment_id`, `tooth_fdi`; `surface` nullable; `condition_code`, `procedure_code`, `notes`. |
+
+Debe enviarse al menos `condition_code` o `procedure_code`. `surface` se envía como `null` para el diente
+completo. El campo `procedure_code` usa el buscador CUPS descrito abajo.
+
+### Notificaciones (`/notifications`)
+
+| Método y ruta | Autorización | Uso | Parámetros / cuerpo |
+| --- | --- | --- | --- |
+| `GET /notifications` | Sesión activa | Notificaciones del usuario. | `unread_only`, `limit`, `offset`. |
+| `POST /notifications` | `notifications.create` | Crear notificación. | `user_id`, `type` (2–40), `title` (3–150), `message`; `appointment_id`, `patient_id` opcionales. |
+| `PATCH /notifications/{id}/read` | Sesión activa | Marcar como leída. | `id` en la ruta. |
+
+### Catálogos CUPS (`/catalogs`)
+
+| Método y ruta | Autorización | Uso | Parámetros |
+| --- | --- | --- | --- |
+| `GET /catalogs/cups` | Sesión activa | Buscar en el catálogo CUPS 2026. | `q` (2–100), `dental_only` (default `true`), `limit` (máx. 50, default 20). |
+| `GET /catalogs/cups/{code}` | Sesión activa | Consultar un código exacto. | `code` en la ruta. |
+
+`CupsOut` es `{ code, name, section, is_dental, is_active }`. Si `q` parece un código (mayúsculas o dígitos,
+hasta 6, con al menos un dígito) se buscan códigos que empiezan por él; si son palabras se buscan procedimientos
+cuyo nombre contiene todas las palabras. No distingue tildes ni mayúsculas.
+
+`src/services/catalogsService.js` recorta `q` a 100 caracteres, no llama al backend con menos de 2 y limita
+`limit` a 50. `src/modules/odontograma/CupsSearch.jsx` aplica debounce de 350 ms y `CupsCodeLabel` consulta el
+nombre oficial de códigos ya guardados cuando la respuesta no lo trae.
+
+## Endpoints retirados
+
+Estas rutas ya no existen en el contrato y fueron eliminadas del frontend (servicios, pantallas, rutas y enlaces):
+
+- `POST /auth/register`
+- `GET /patients/me`, `POST /patients/me`, `PATCH /patients/me`
+- `GET /clinical-history/me`
+- Toda la lógica de vinculación de pacientes (`linkPatient`, `user_exists`, `has_patient_profile`, `same_clinic`)
+
+## Paginación, fechas y errores
+
+- Paginación general: `limit` entre 1 y 200 (default 50) y `offset` desde 0. El total viaja en `X-Total-Count`,
+  expuesto por CORS. Excepción: `GET /appointments` devuelve un arreglo sin paginación declarada.
+- Fechas `YYYY-MM-DD`, horas `HH:MM:SS` y fecha-hora ISO 8601 en hora de Colombia (`America/Bogota`) para la agenda.
+- Formato de error general: `{"detail": "mensaje"}`. Códigos: 400 regla de negocio, 401 token inválido o vencido,
+  403 sin permiso o clínica/cuenta no habilitada, 404 no existe o es de otra clínica, 409 duplicado o cruce,
+  422 validación por campos, 423 cuenta bloqueada temporalmente, 500 error interno y 502 fallo de subida de
+  documentos.
+- El frontend muestra el mensaje del backend para 400, 403, 404, 409, 423 y 502; para 5xx genéricos usa un mensaje
+  seguro. Los 422 se asocian al campo indicado por `loc`.
+
+## Endpoints que el frontend no debe usar
+
+- `POST /internal/run-reminders`: es exclusivo del cron del backend.
+- `/docs`, `/redoc` y `/openapi.json`: solo están disponibles fuera de producción.
+- No se usa `GET /` (estado del servicio) en la interfaz.
+
+## Modo de vista previa
+
+`PREVIEW_MODE` solo se activa con `VITE_PREVIEW_MODE=true`; `.env.example` lo deja en `false`. En ese modo
+`AuthContext` arranca con un usuario de demostración y `usersService` devuelve datos fijos y rechaza escrituras.
+Las páginas clínicas y el registro de clínicas siguen llamando a la API real: para probarlas se necesita
+`VITE_PREVIEW_MODE=false`, iniciar sesión y tener los permisos correspondientes.
 
 ## CORS y despliegue
 
-El frontend solo puede acceder al servidor si este permite su origen mediante CORS. La lista concreta de orígenes permitidos no está en este código. **PENDIENTE DE CONFIRMAR CON BACKEND**.
+El backend debe permitir el origen exacto del frontend (con protocolo y sin barra final) y exponer
+`X-Total-Count`. Para desarrollo local se usan `http://localhost:5173` y `http://localhost:8080`. La lista real de
+orígenes la configura el backend y queda **pendiente de confirmar con el equipo de backend**.

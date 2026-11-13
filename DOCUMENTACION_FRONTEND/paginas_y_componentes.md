@@ -4,22 +4,22 @@
 
 | Vista | Ruta registrada | Descripción y estado |
 | --- | --- | --- |
-| Registro de clínica | `/registro-clinica` | Formulario público con carga de archivos. Hay validación y solicitud HTTP; esta ruta no está bloqueada por `PREVIEW_MODE`, por lo que puede llamar a la API aun cuando el resto de la aplicación esté en preview. PARCIAL. |
-| Inicio de sesión | `/login` | Correo y contraseña, errores y acceso a registro. La ruta es de invitado; el flujo de autenticación está en modo vista previa actualmente. PARCIAL. |
+| Registro de clínica | `/registro-clinica` | Formulario público con tres PDF obligatorios, validación de tipo/tamaño y solicitud multipart. PARCIAL. |
+| Inicio de sesión | `/login` | Correo y contraseña, errores y MFA opcional; usa la API cuando `VITE_PREVIEW_MODE` está desactivado. PARCIAL. |
 | Verificación MFA | `/verificar-mfa` | Captura código de seis dígitos si existe un token MFA pendiente. PARCIAL. |
 | Cambio obligatorio de contraseña | `/cambiar-contrasena` | Vista autenticada independiente, protegida por `must_change_password`. PARCIAL. |
 | Inicio | `/` | Saludo, rol, accesos rápidos y módulos disponibles. En modo vista previa usa el usuario demo. PARCIAL. |
 | Usuarios | `/usuarios` | Lista, búsqueda en cliente, recarga y cambio de rol. La vista previa muestra datos estáticos y desactiva cambios. PARCIAL. |
 | Crear trabajador | `/usuarios/nuevo` | Formulario de alta si se desactiva la vista previa; esta ruta muestra solo una explicación en el modo actual. PARCIAL. |
-| Roles y permisos | `/roles` | Matriz estática de cinco roles y once permisos representados en el cliente. No carga matriz desde API. PARCIAL. |
+| Roles y permisos | `/roles` | Matriz estática de los roles asignables; no carga matriz desde API. PARCIAL. |
 | Auditoría | `/auditoria` | Tabla de eventos; en vista previa usa registros de ejemplo. PARCIAL. |
-| Revisión de clínicas | `/clinicas` | Solicitudes pendientes, enlaces a documentos y diálogo de aprobación/rechazo. Se omite la carga en modo vista previa. PARCIAL. |
-| Pacientes | `/pacientes` | Directorio y formulario visual; sin guardar ni consultar datos. PARCIAL. |
-| Citas y agenda | `/citas` | Calendario mensual, semanal y diario sin eventos reales; formulario no persistente. PARCIAL. |
-| Historia clínica | `/historia-clinica` | Búsqueda visual y pestañas sin datos médicos reales. PARCIAL. |
-| Odontograma | `/odontograma` | Selección visual de piezas FDI permanentes/temporales; sin condición ni procedimientos persistidos. PARCIAL. |
+| Revisión de clínicas | `/clinicas` | Solicitudes pendientes con enlaces privados a cédula, RUT y Cámara de Comercio; aprobación/rechazo. PARCIAL. |
+| Pacientes | `/pacientes` | Directorio, alta por documento, consulta y edición; muestra minoría de edad y alertas. PARCIAL. |
+| Citas y agenda | `/citas` | Calendario conectado con servicios de citas, sujeto a permisos y disponibilidad del backend. PARCIAL. |
+| Historia clínica | `/historia-clinica` | Consulta por paciente y registro de evolución; muestra alerta médica antes de atender. PARCIAL. |
+| Odontograma | `/odontograma` | Piezas FDI, registro de hallazgos y buscador CUPS con descripción oficial; muestra alerta médica. PARCIAL. |
 | Facturación y pagos | `/facturacion` | Tabla vacía, filtros deshabilitados y acción de registrar pago deshabilitada. PARCIAL. |
-| Notificaciones | `/notificaciones` | Filtro de interfaz y estados vacíos, sin notificaciones ni actualización. PARCIAL. |
+| Notificaciones | `/notificaciones` | Lista notificaciones paginadas y permite marcarlas como leídas. PARCIAL. |
 | Configuración de cuenta | `/configuracion` | Muestra datos de la sesión; edición de perfil no existe y el cambio de contraseña está oculto por el modo previo. PARCIAL. |
 | Acceso denegado | Vista de guard | Mensaje y regreso al inicio. IMPLEMENTADA. |
 | No encontrado | `*` dentro del layout autenticado | Mensaje para rutas desconocidas del área autenticada. IMPLEMENTADA. |
@@ -49,4 +49,4 @@
 
 ## Alcance comprobable
 
-La existencia de componentes y pantallas no demuestra que su operación esté conectada al backend. Las vistas clínicas y de pagos/notificaciones son explícitamente prototipos. El modo `PREVIEW_MODE` también altera la ejecución de autenticación, usuarios y auditoría.
+La integración de servicios no demuestra que el backend de producción sea alcanzable. La URL se configura con `VITE_API_URL`; `docs/openapi.json` es un catálogo histórico y no se consulta en tiempo de ejecución.

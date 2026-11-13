@@ -31,6 +31,19 @@ test('502 muestra el detail legible del servicio externo', () => {
   assert.equal(err.message, 'Falló la subida de documentos. Reintenta.');
 });
 
+test('400 y 409 de pacientes se asocian al campo correspondiente', () => {
+  const emptyField = new ApiError({ status: 400, detail: 'El campo birth_date no puede quedar vacio' });
+  const duplicate = new ApiError({
+    status: 409,
+    detail: 'Ya existe un paciente con ese documento en esta clinica (id=42)',
+  });
+
+  assert.deepEqual(emptyField.fieldErrors, { birth_date: 'El campo birth_date no puede quedar vacio' });
+  assert.deepEqual(duplicate.fieldErrors, {
+    document_number: 'Ya existe un paciente con ese documento en esta clinica (id=42)',
+  });
+});
+
 test('mensajes por defecto en español para 409, 423 y red', () => {
   assert.match(new ApiError({ status: 409 }).message, /conflicto|existe/i);
   assert.match(new ApiError({ status: 423 }).message, /bloqueada/);

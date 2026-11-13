@@ -73,23 +73,6 @@ export const resetPassword = ({ email, code, newPassword }) =>
     auth: false,
   });
 
-/**
- * POST /auth/register (público). Body: RegisterIn
- * (email, document_number, full_name, phone_number, password).
- */
-export const registerPatientAccount = ({ fullName, email, documentNumber, phoneNumber, password }) =>
-  request('/auth/register', {
-    method: 'POST',
-    body: {
-      full_name: fullName,
-      email,
-      document_number: documentNumber,
-      phone_number: phoneNumber,
-      password,
-    },
-    auth: false,
-  });
-
 /** POST /auth/mfa/setup (Bearer). Devuelve MFASetupOut { secret, otpauth_uri }. */
 export const setupMfa = () => request('/auth/mfa/setup', { method: 'POST' });
 

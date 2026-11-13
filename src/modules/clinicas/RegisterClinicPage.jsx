@@ -6,7 +6,12 @@ import { PasswordField, TextField } from '../../components/FormField.jsx';
 import Icon from '../../components/Icon.jsx';
 import { SLOW_SERVER_MESSAGE, useSlowLoading } from '../../hooks/useSlowLoading.js';
 import { ApiError, getErrorMessage } from '../../utils/errors.js';
-import { calculateNitCheckDigit, hasClinicErrors, validateClinicRegistration } from './clinicValidation.js';
+import {
+  CLINIC_FILE_ACCEPT,
+  calculateNitCheckDigit,
+  hasClinicErrors,
+  validateClinicRegistration,
+} from './clinicValidation.js';
 import { registerClinic } from './clinicService.js';
 
 const EMPTY_VALUES = {
@@ -19,10 +24,11 @@ const EMPTY_VALUES = {
   phone_number: '',
   password: '',
 };
-const EMPTY_FILES = { cedula_file: null, rut_file: null };
+const EMPTY_FILES = { cedula_file: null, rut_file: null, camara_comercio_file: null };
 const FILE_FIELDS = [
-  { name: 'cedula_file', label: 'Cédula del administrador' },
+  { name: 'cedula_file', label: 'Cédula del representante legal' },
   { name: 'rut_file', label: 'RUT de la clínica' },
+  { name: 'camara_comercio_file', label: 'Certificado de Cámara de Comercio' },
 ];
 
 function FileField({ name, label, file, error, disabled, onChange }) {
@@ -34,7 +40,7 @@ function FileField({ name, label, file, error, disabled, onChange }) {
           id={name}
           className="sr-only"
           type="file"
-          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+          accept={CLINIC_FILE_ACCEPT}
           onChange={(event) => onChange(name, event.target.files?.[0] ?? null)}
           disabled={disabled}
           aria-invalid={error ? 'true' : undefined}
@@ -199,6 +205,7 @@ export default function RegisterClinicPage() {
               onChange={updateValue('email')}
               onBlur={() => setTouched((current) => ({ ...current, email: true }))}
               error={showError('email')}
+              maxLength={255}
               autoComplete="email"
               disabled={submitting}
             />
@@ -261,7 +268,7 @@ export default function RegisterClinicPage() {
                 onChange={updateFile}
               />
             ))}
-            <p className="field__hint clinic-form__span-2">Archivos JPG, PNG o WEBP de máximo 5 MB cada uno.</p>
+            <p className="field__hint clinic-form__span-2">Solo archivos PDF de máximo 5 MB cada uno. El servidor valida que el contenido sea un PDF real.</p>
           </div>
         </section>
 

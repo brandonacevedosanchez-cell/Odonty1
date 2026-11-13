@@ -8,7 +8,7 @@ El layout contiene:
 
 - **Sidebar:** secciones Inicio, Administración, Módulos clínicos y Cuenta. Los enlaces se construyen desde `routes/navigation.js`; la ruta activa se marca con `NavLink`.
 - **Topbar:** título según la ruta, perfil, rol y menú desplegable con configuración y cierre de sesión.
-- **Contenido:** `Outlet` de React Router. En el modo actual se muestra un aviso de vista previa de solo lectura.
+- **Contenido:** `Outlet` de React Router. El modo de vista previa es opcional y se controla con `VITE_PREVIEW_MODE`.
 - La barra lateral se cierra al cambiar de ruta y soporta Escape/cierre por superposición.
 
 ## Rutas y guards
@@ -44,4 +44,4 @@ Algunos controles modifican estado React para mostrar una interfaz —por ejempl
 
 ## Observación sobre textos de estado
 
-`HomePage` muestra una tarjeta con el texto «Conectado al backend de Odonty» para usuarios/roles. Sin embargo, el modo vista previa activo sustituye los usuarios/auditoría por muestras, autentica con el usuario fijo y desactiva solicitudes de algunas operaciones. El texto es por ello una etiqueta de interfaz, no evidencia de conexión en la ejecución actual.
+`HomePage` muestra accesos según la sesión. En `VITE_PREVIEW_MODE=true`, usuarios y auditoría usan datos de muestra; para comprobar conectividad real se debe desactivar el modo y configurar `VITE_API_URL`.

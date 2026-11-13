@@ -1,6 +1,6 @@
 // Validaciones del formulario según el contrato (sección 6). Las del backend son las que mandan.
 
-import { PATIENT_DOCUMENT_NUMBER_PATTERN } from '../constants/apiValues.js';
+import { PATIENT_DOCUMENT_NUMBER_PATTERN, PATIENT_MINOR_AGE } from '../constants/apiValues.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -15,6 +15,7 @@ export function validateFullName(value) {
 export function validateEmail(value) {
   const v = String(value ?? '').trim();
   if (!v) return 'El correo electrónico es obligatorio.';
+  if (v.length > 255) return 'El correo electrónico debe tener máximo 255 caracteres.';
   if (!EMAIL_RE.test(v)) return 'Ingresa un correo electrónico válido.';
   return '';
 }
@@ -37,6 +38,42 @@ export function validatePatientDocument(value) {
 
 export function validateRequired(value, label) {
   return String(value ?? '').trim() ? '' : `${label} es obligatorio.`;
+}
+
+/** Fecha de nacimiento obligatoria en PatientCreateIn, en formato ISO yyyy-mm-dd. */
+export function validateBirthDate(value) {
+  const v = String(value ?? '').trim();
+  if (!v) return 'La fecha de nacimiento es obligatoria.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return 'Ingresa una fecha de nacimiento válida.';
+  const date = new Date(`${v}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return 'Ingresa una fecha de nacimiento válida.';
+  if (date > new Date()) return 'La fecha de nacimiento no puede estar en el futuro.';
+  return '';
+}
+
+/** Edad cumplida en años a partir de una fecha ISO (yyyy-mm-dd). */
+export function calculateAge(birthDate, today = new Date()) {
+  const value = String(birthDate ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const birth = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1;
+  return age >= 0 ? age : null;
+}
+
+/** El contrato exige datos del responsable cuando el paciente es menor de edad. */
+export function isMinor(birthDate, today = new Date()) {
+  const age = calculateAge(birthDate, today);
+  return age !== null && age < PATIENT_MINOR_AGE;
+}
+
+/** Texto opcional con máximo del contrato; devuelve error solo si se excede. */
+export function validateOptionalText(value, maxLength, label) {
+  const v = String(value ?? '');
+  if (v.length > maxLength) return `${label} debe tener máximo ${maxLength} caracteres.`;
+  return '';
 }
 
 /** Quita espacios, guiones y el prefijo +57 opcional. */

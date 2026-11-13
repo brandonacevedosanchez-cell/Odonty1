@@ -1,7 +1,7 @@
 import { buildQuery, request, requestPaginated } from './apiClient.js';
 import { PREVIEW_AUDIT_LOG, PREVIEW_MODE, PREVIEW_USERS, previewWriteError } from '../config/preview.js';
 import { normalizeText } from '../utils/format.js';
-import { clampApiListLimit } from '../utils/pagination.js';
+import { clampApiListLimit, clampApiListOffset } from '../utils/pagination.js';
 
 /**
  * GET /users (permiso users.view). Devuelve { data: UserOut[], total }.
@@ -13,12 +13,13 @@ import { clampApiListLimit } from '../utils/pagination.js';
  * @property {string} email
  * @property {string} document_number
  * @property {string} phone_number
- * @property {'super_admin'|'admin'|'odontologo'|'recepcionista'|'usuario'} role_name
+ * @property {'super_admin'|'admin'|'odontologo'|'recepcionista'} role_name
  * @property {boolean} is_active
  * @property {boolean} must_change_password
  */
-export async function listUsers({ search = '', role = '', isActive = '', limit = 20, offset = 0 } = {}) {
+export async function listUsers({ search = '', role = '', isActive = '', limit = 50, offset = 0 } = {}) {
   const safeLimit = clampApiListLimit(limit);
+  const safeOffset = clampApiListOffset(offset);
   if (PREVIEW_MODE) {
     const q = normalizeText(search.trim());
     const filtered = PREVIEW_USERS.filter((user) => {
@@ -27,11 +28,11 @@ export async function listUsers({ search = '', role = '', isActive = '', limit =
       if (!q) return true;
       return [user.full_name, user.email, user.document_number].some((value) => normalizeText(value).includes(q));
     });
-    return { data: filtered.slice(offset, offset + safeLimit).map((user) => ({ ...user })), total: filtered.length };
+    return { data: filtered.slice(safeOffset, safeOffset + safeLimit).map((user) => ({ ...user })), total: filtered.length };
   }
 
   return requestPaginated(
-    `/users${buildQuery({ search, role, is_active: isActive === '' ? '' : isActive, limit: safeLimit, offset })}`,
+    `/users${buildQuery({ search, role, is_active: isActive === '' ? '' : isActive, limit: safeLimit, offset: safeOffset })}`,
   );
 }
 

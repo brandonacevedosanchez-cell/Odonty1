@@ -1,17 +1,17 @@
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { listAppointments } from '../src/services/appointmentsService.js';
 import {
-  listAppointments,
-} from '../src/services/appointmentsService.js';
-import {
+  buildPatientUpdate,
+  checkPatient,
   createPatient,
+  extractPatientIdFromConflict,
+  getPatientAlerts,
+  hasMedicalAlerts,
   listPatients,
   updatePatient,
 } from '../src/services/patientsService.js';
-import {
-  createClinicalEntry,
-  listClinicalHistory,
-} from '../src/services/clinicalHistoryService.js';
+import { createClinicalEntry, listClinicalHistory } from '../src/services/clinicalHistoryService.js';
 import {
   createOdontogramEntry,
   getCurrentOdontogram,
@@ -74,27 +74,43 @@ test('los listados clínicos llaman sus GET y leen X-Total-Count', async () => {
   assert.equal(calls[5].search.get('patient_id'), '21');
 });
 
+test('los servicios paginados usan limit 50 por defecto y offset no negativo', async () => {
+  await listPatients({ offset: -3 });
+  await listClinicalHistory({ patientId: 21, offset: -1 });
+  await getOdontogramHistory(21, { offset: -2 });
+  await listNotifications({ offset: -4 });
+
+  assert.deepEqual(calls.map(({ search }) => [search.get('limit'), search.get('offset')]), [
+    ['50', '0'],
+    ['50', '0'],
+    ['50', '0'],
+    ['50', '0'],
+  ]);
+});
+
 test('las acciones de pacientes, historia, odontograma y notificaciones usan sus endpoints', async () => {
+  await checkPatient({ documentType: 'TI', documentNumber: '123456' });
   await createPatient({
     full_name: 'Ana Prueba',
     email: 'ana@example.com',
     document_number: '123456',
     phone_number: '3001234567',
     document_type: 'CC',
-    birth_date: '1990-01-01',
-    gender: 'femenino',
+    birth_date: '2010-01-01',
+    gender: 'Masculino',
     blood_type: 'O+',
-    eps: 'Sura',
+    eps: 'SURA',
     allergies: 'Penicilina',
+    current_medications: 'Ibuprofeno',
+    medical_conditions: 'Asma',
     guardian_full_name: 'Luis Prueba',
+    guardian_document_number: '987654',
+    guardian_phone: '3009876543',
+    guardian_relationship: 'Padre',
   });
 
-  await updatePatient(21, {
-    full_name: 'Ana Actualizada',
-    birth_date: '1991-02-02',
-    blood_type: 'A-',
-    notes: '',
-  });
+  await updatePatient(21, { blood_type: 'A-', notes: '' });
+  await getPatientAlerts(21);
   await createClinicalEntry({
     appointment_id: 31,
     patient_id: 21,
@@ -110,33 +126,41 @@ test('las acciones de pacientes, historia, odontograma y notificaciones usan sus
   await createNotification({ user_id: 51, type: 'control', title: 'Control', message: 'Recordatorio' });
 
   assert.deepEqual(calls.map(({ method, path }) => `${method} ${path}`), [
+    'GET /patients/check',
     'POST /patients',
     'PATCH /patients/21',
+    'GET /patients/21/alerts',
     'POST /clinical-history',
     'POST /odontogram',
     'PATCH /notifications/41/read',
     'POST /notifications',
   ]);
   assert.equal(calls.every((call) => call.authorization === 'Bearer clinical-test-access'), true);
-  assert.deepEqual(calls[0].body, {
+  assert.equal(calls[0].search.get('document_type'), 'TI');
+  assert.equal(calls[0].search.get('document_number'), '123456');
+  assert.deepEqual(calls[1].body, {
     full_name: 'Ana Prueba',
     email: 'ana@example.com',
     document_number: '123456',
     phone_number: '3001234567',
     document_type: 'CC',
-    birth_date: '1990-01-01',
-    gender: 'femenino',
+    birth_date: '2010-01-01',
+    gender: 'Masculino',
     blood_type: 'O+',
-    eps: 'Sura',
-    allergies: 'Penicilina',
+    eps: 'SURA',
     guardian_full_name: 'Luis Prueba',
+    guardian_document_number: '987654',
+    guardian_phone: '3009876543',
+    guardian_relationship: 'Padre',
+    allergies: 'Penicilina',
+    current_medications: 'Ibuprofeno',
+    medical_conditions: 'Asma',
   });
-  assert.deepEqual(calls[1].body, {
-    birth_date: '1991-02-02',
+  assert.deepEqual(calls[2].body, {
     blood_type: 'A-',
     notes: null,
   });
-  assert.deepEqual(calls[2].body, {
+  assert.deepEqual(calls[4].body, {
     appointment_id: 31,
     antecedentes: 'Ninguno',
     motivo_consulta: 'Dolor',
@@ -144,18 +168,47 @@ test('las acciones de pacientes, historia, odontograma y notificaciones usan sus
     diagnostico: 'Caries oclusal',
     tratamiento: 'Calza',
   });
-  assert.deepEqual(calls[3].body, {
+  assert.deepEqual(calls[5].body, {
     appointment_id: 31,
     tooth_fdi: 16,
     surface: 'oclusal',
     condition_code: 'C1',
   });
-  assert.deepEqual(calls[5].body, {
+  assert.deepEqual(calls[7].body, {
     user_id: 51,
     type: 'control',
     title: 'Control',
     message: 'Recordatorio',
   });
+});
+
+test('PATCH solo incluye campos que cambian y limpia opcionales con null', () => {
+  const original = {
+    full_name: 'Ana Prueba',
+    birth_date: '2000-01-01',
+    eps: 'SURA',
+    blood_type: null,
+    notes: 'Sin cambios',
+  };
+  const changes = buildPatientUpdate(original, {
+    ...original,
+    full_name: ' Ana Prueba ',
+    eps: '',
+    blood_type: 'O+',
+  });
+
+  assert.deepEqual(changes, { eps: null, blood_type: 'O+' });
+  assert.deepEqual(buildPatientUpdate(original, original), {});
+});
+
+test('detecta el id del 409 y las alertas médicas', () => {
+  assert.equal(
+    extractPatientIdFromConflict('Ya existe un paciente con ese documento en esta clinica (id=42)'),
+    42,
+  );
+  assert.equal(extractPatientIdFromConflict('Otro conflicto'), null);
+  assert.equal(hasMedicalAlerts({ allergies: 'Penicilina' }), true);
+  assert.equal(hasMedicalAlerts({ allergies: '  ', current_medications: '', medical_conditions: null }), false);
 });
 
 test('el odontograma envía surface null para un diente completo', async () => {

@@ -7,7 +7,6 @@ const admin = { id: 2, role_name: 'admin' };
 const otherAdmin = { id: 3, role_name: 'admin' };
 const dentist = { id: 4, role_name: 'odontologo' };
 const receptionist = { id: 5, role_name: 'recepcionista' };
-const patient = { id: 6, role_name: 'usuario' };
 
 test('el bypass está desactivado: cada rol solo recibe sus permisos', () => {
   assert.equal(can(admin, PERMISSIONS.USERS_VIEW), true);
@@ -46,17 +45,13 @@ test('la matriz propuesta de acceso clínico coincide con los roles acordados', 
   assert.ok(!getPermissions(dentist).includes(PERMISSIONS.BILLING_VIEW));
   assert.ok(getPermissions(receptionist).includes(PERMISSIONS.PATIENTS_CREATE));
   assert.ok(!getPermissions(receptionist).includes(PERMISSIONS.CLINICAL_HISTORY_VIEW));
-  assert.deepEqual(getPermissions(patient), [
-    PERMISSIONS.PATIENTS_SELF,
-    PERMISSIONS.CLINICAL_HISTORY_SELF,
-    PERMISSIONS.NOTIFICATIONS_VIEW,
-  ]);
 });
 
-test('admin solo asigna odontologo, recepcionista y usuario', () => {
-  assert.deepEqual(assignableRoles(admin), ['odontologo', 'recepcionista', 'usuario']);
+test('el rol usuario ya no se ofrece en el frontend', () => {
+  assert.deepEqual(assignableRoles(admin), ['odontologo', 'recepcionista']);
   assert.ok(assignableRoles(superAdmin).includes('admin'));
   assert.ok(!assignableRoles(superAdmin).includes('super_admin'));
+  assert.ok(!assignableRoles(superAdmin).includes('usuario'));
 });
 
 test('nadie cambia su propio rol', () => {
@@ -76,8 +71,9 @@ test('admin no modifica a otro admin, pero super_admin sí', () => {
 test('admin puede cambiar el rol de un odontologo y no se le ofrece admin ni su rol actual', () => {
   assert.equal(roleChangeAccess(admin, dentist).allowed, true);
   const options = roleOptionsFor(admin, dentist);
-  assert.deepEqual(options, ['recepcionista', 'usuario']);
+  assert.deepEqual(options, ['recepcionista']);
   assert.ok(!options.includes('admin'));
+  assert.ok(!options.includes('usuario'));
 });
 
 test('un rol sin permiso de gestión no puede cambiar roles', () => {

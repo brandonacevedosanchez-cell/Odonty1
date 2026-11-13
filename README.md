@@ -1,7 +1,8 @@
 # Odonty — Frontend
 
 Aplicación web (React + Vite) para administrar una clínica odontológica. Proyecto formativo SENA.
-Se conecta al backend FastAPI de Odonty y respeta el contrato `Contrato_API_Odonty.docx`.
+Se conecta al backend FastAPI de Odonty y sigue el contrato API del 13 de noviembre de 2026, documentado en
+`DOCUMENTACION_FRONTEND/integracion_api.md`.
 
 ## Qué incluye
 
@@ -22,13 +23,14 @@ Se conecta al backend FastAPI de Odonty y respeta el contrato `Contrato_API_Odon
 
 | Variable | Descripción | Valor por defecto |
 | --- | --- | --- |
-| `VITE_API_URL` | URL base del backend, sin barra final | `https://odontyoriginal-1.onrender.com` |
+| `VITE_API_URL` | URL base del backend, sin barra final; requerida | Sin valor predeterminado |
 
 Copia `.env.example` a `.env` para cambiarla en desarrollo. `VITE_API_URL` se incrusta en el bundle **al compilar**, no al ejecutar.
 
 ## Vista previa local
 
-La vista previa está activada temporalmente en `src/config/preview.js`. Al abrir la aplicación entra directamente al dashboard, sin login ni llamadas al backend, y usa datos de ejemplo para usuarios y auditoría. Las pantallas son de solo lectura. Para reactivar el flujo normal de autenticación y API, cambia `PREVIEW_MODE` a `false` y `FRONTEND_PERMISSION_BYPASS` a `false` en `src/utils/permissions.js`.
+La vista previa se activa solo con `VITE_PREVIEW_MODE=true`. Para usar la API real, configura `VITE_API_URL`,
+usa `VITE_PREVIEW_MODE=false` y `VITE_PERMISSION_BYPASS=false`.
 
 ## Desarrollo local
 
@@ -41,9 +43,10 @@ npm test           # pruebas de lógica (permisos, errores, validaciones, sesió
 npm run build      # genera dist/
 ```
 
-Para probar con el backend local, crea `.env` con `VITE_API_URL=http://localhost:8000`, desactiva `PREVIEW_MODE` en
-`src/config/preview.js` y ejecuta `npm run dev`. Abre `/registro-clinica` para enviar una solicitud con imágenes JPG,
-PNG o WEBP (máximo 5 MB cada una). Para revisar clínicas, inicia sesión con una cuenta `super_admin` y visita
+Para probar con el backend local, crea `.env` con `VITE_API_URL=http://localhost:8000` y
+`VITE_PREVIEW_MODE=false`, y ejecuta `npm run dev`. Abre `/registro-clinica` para enviar una solicitud con tres
+archivos PDF (cédula, RUT y certificado de Cámara de Comercio, máximo 5 MB cada uno). Para revisar clínicas,
+inicia sesión con una cuenta `super_admin` y visita
 `/clinicas`; también aparece en Administración del sidebar.
 
 ## Docker
@@ -94,7 +97,7 @@ tests/          Pruebas con node:test (sin dependencias extra)
 
 ## Decisiones de seguridad
 
-- **Visualización temporal**: el frontend permite a cualquier usuario autenticado ver los módulos aunque su rol no tenga esos permisos. El backend sigue siendo la autoridad y puede rechazar las solicitudes; para restaurar el control visual por rol, cambia `FRONTEND_PERMISSION_BYPASS` a `false` en `src/utils/permissions.js`.
+- **Bypass de permisos opcional**: solo se activa con `VITE_PERMISSION_BYPASS=true`; por defecto está desactivado. El backend sigue siendo la autoridad en cualquier caso.
 - **Tokens**: el *access token* vive solo en memoria; el *refresh token* se guarda en `sessionStorage` (por pestaña).
   Se eligió así porque el backend rota el refresh token: compartirlo entre pestañas con `localStorage` provocaría
   invalidaciones cruzadas. Contrapartida: al cerrar la pestaña hay que iniciar sesión de nuevo.
@@ -105,22 +108,17 @@ tests/          Pruebas con node:test (sin dependencias extra)
 - Los tokens nunca se muestran ni se escriben en consola.
 - Ocultar botones o rutas es solo ayuda visual: el backend es siempre la autoridad.
 
-## Módulos clínicos y trabajo pendiente de backend
+## Módulos clínicos
 
-El contrato `Contrato_API_Odonty.docx` no documenta modelos, rutas ni permisos para estos módulos. Las interfaces actuales muestran estados vacíos y desactivan las acciones de guardado; no se envían solicitudes a endpoints supuestos.
+La integración sigue el contrato **Odonty API del 13 de noviembre de 2026**, detallado en
+[DOCUMENTACION_FRONTEND/integracion_api.md](./DOCUMENTACION_FRONTEND/integracion_api.md). Pacientes, citas,
+historia clínica, odontograma y notificaciones cuentan con servicios conectados a los endpoints documentados;
+el odontograma usa el catálogo CUPS y las pantallas clínicas consultan alertas médicas. La compatibilidad con el
+backend en ejecución depende de `VITE_API_URL`, CORS y permisos asignados a la cuenta.
 
-| Módulo | Interfaz disponible | Requiere implementar/documentar en backend |
-| --- | --- | --- |
-| Pacientes | Directorio vacío, búsqueda y formulario visual | Modelo y campos validados; listado, perfil, creación y edición; estados si aplican |
-| Citas y agenda | Calendario mensual, semanal y diario; formulario y filtros desactivados | Recursos de citas y catálogos de pacientes/odontólogos; lectura, creación y cambios; estados/duración admitidos |
-| Historia clínica | Búsqueda y secciones de información personal, antecedentes y evolución | Lectura clínica por paciente, modelo y campos; controles de acceso a datos sensibles |
-| Odontograma | Selección interactiva de piezas con dentición permanente/temporal y numeración FDI | Modelo y lectura/escritura de condiciones y procedimientos, catálogo de estados y trazabilidad |
-| Facturación y pagos | Búsqueda, filtros y tabla vacía | Facturas, pagos, saldos y estados; permisos y reglas para registrar pagos |
-| Notificaciones | Centro vacío con filtros y panel de detalle | Listado, detalle, fecha, tipos, lectura/no leídas y cualquier acción de actualización |
-
-El frontend usa el siguiente **borrador de permisos aprobado para su navegación y guardas**: super_admin/admin acceden a todo; odontologo a pacientes, citas, historia clínica y odontograma; recepcionista a pacientes, citas y facturación; usuario a notificaciones. Estos permisos no están en el contrato ni sustituyen la autorización del servidor: backend debe acordar e implementar su validación antes de servir datos.
-
-No se utiliza ningún endpoint nuevo para los seis módulos. Los endpoints ya documentados de autenticación, usuarios/auditoría y clínicas permanecen sin cambios.
+Facturación y pagos siguen pendientes de endpoints documentados en el contrato actual. La matriz de permisos es
+una ayuda visual y no sustituye la autorización del backend. El frontend asigna `admin`, `odontologo` y
+`recepcionista`; no ofrece el rol legado `usuario`.
 
 ## Pendiente
 

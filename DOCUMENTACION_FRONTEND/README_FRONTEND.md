@@ -6,8 +6,8 @@ Este conjunto describe el código del frontend que se encuentra en la carpeta ra
 
 La implementación tiene dos realidades que deben distinguirse:
 
-- **Vista previa activa:** `src/config/preview.js` fija `PREVIEW_MODE = true`. La aplicación abre el panel con un usuario de demostración y bloquea o sustituye varias operaciones de red. Por tanto, disponer de código de integración no significa que la función esté conectada durante la ejecución actual.
-- **Código de integración existente:** autenticación, usuarios, auditoría y clínicas tienen servicios que construyen solicitudes HTTP, pero el modo de vista previa impide comprobar su compatibilidad con el servidor en una ejecución normal.
+- **Vista previa configurable:** solo se activa con `VITE_PREVIEW_MODE=true`; `.env.example` la desactiva.
+- **Contrato vigente:** autenticación, clínicas y módulos clínicos usan los servicios descritos en `integracion_api.md`; la compatibilidad con el backend activo depende de URL, CORS y permisos.
 
 La carpeta `src/modules` también contiene interfaces clínicas preliminares. Estas no consultan ni guardan datos; la interfaz lo advierte explícitamente.
 
@@ -20,8 +20,9 @@ La carpeta `src/modules` también contiene interfaces clínicas preliminares. Es
 | Gestión de usuarios | PARCIAL | Servicios y pantallas implementados; el modo actual usa registros estáticos y no permite escritura. |
 | Registro/revisión de clínicas | PARCIAL | Formulario, validaciones y servicios; la revisión depende de desactivar la vista previa y del backend. |
 | Roles y permisos | PARCIAL | Hay una matriz estática; no es autorización del servidor. Algunos guards usan un bypass habilitado. |
-| Pacientes, citas, historia clínica, odontograma, facturación y notificaciones | PARCIAL | Prototipos de interfaz sin peticiones API ni persistencia. |
-| Instalación, pruebas y compilación | IMPLEMENTADA | Scripts npm declarados; las 35 pruebas y `npm run build` se ejecutaron correctamente durante esta revisión. |
+| Pacientes, citas, historia clínica, odontograma y notificaciones | PARCIAL | Servicios y formularios conectados al contrato del 13-nov-2026; no se ejecutó una prueba contra el backend remoto. |
+| Facturación y pagos | PENDIENTE | No hay endpoints de facturación documentados en el contrato actual. |
+| Instalación, pruebas y compilación | IMPLEMENTADA | Scripts npm declarados; las 63 pruebas y `npm run build` se ejecutaron correctamente durante esta revisión. |
 
 ## Cómo leer el resto
 

@@ -97,7 +97,12 @@ export default function ClinicsPage() {
                       <div className="clinic-documents">
                         {clinic.cedula_url && <a href={clinic.cedula_url} target="_blank" rel="noopener noreferrer">Ver cédula</a>}
                         {clinic.rut_url && <a href={clinic.rut_url} target="_blank" rel="noopener noreferrer">Ver RUT</a>}
-                        {!clinic.cedula_url && !clinic.rut_url && '—'}
+                        {clinic.camara_comercio_url && (
+                          <a href={clinic.camara_comercio_url} target="_blank" rel="noopener noreferrer">
+                            Ver Cámara de Comercio
+                          </a>
+                        )}
+                        {!clinic.cedula_url && !clinic.rut_url && !clinic.camara_comercio_url && '—'}
                       </div>
                     </td>
                     <td data-label="Acciones">

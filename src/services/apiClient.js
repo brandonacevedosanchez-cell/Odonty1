@@ -19,6 +19,14 @@ export function setAuthHandlers(next) {
 
 /** Petición de bajo nivel: sin lógica de sesión. Lanza ApiError ante cualquier fallo. */
 async function send(path, { method = 'GET', body, token, withMeta = false } = {}) {
+  if (!API_URL) {
+    throw new ApiError({
+      status: 0,
+      detail: 'Configura VITE_API_URL con la URL base del backend antes de usar la API.',
+      code: 'API_URL_NOT_CONFIGURED',
+    });
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 

@@ -5,7 +5,7 @@ import {
 import { buildQuery, request } from './apiClient.js';
 
 /**
- * Capa de servicios de /appointments. Contrato: docs/openapi.json
+ * Capa de servicios de /appointments. Contrato API: 13-nov-2026.
  * (AppointmentCreateIn, AppointmentRescheduleIn, AppointmentStatusIn, AppointmentOut).
  *
  * @typedef {Object} AppointmentOut

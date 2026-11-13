@@ -13,6 +13,7 @@ import { listPatients } from '../../services/patientsService.js';
 import { getErrorMessage, getFieldErrors } from '../../utils/errors.js';
 import { formatDateTime } from '../../utils/format.js';
 import { PERMISSIONS } from '../../utils/permissions.js';
+import PatientAlertsBanner from '../pacientes/PatientAlertsBanner.jsx';
 
 const LIMIT = 10;
 const EMPTY = {
@@ -230,6 +231,8 @@ export default function ClinicalHistoryPage() {
               </button>
             )}
           </div>
+
+          <PatientAlertsBanner patientId={selected.id} />
 
           {formOpen && canCreate && (
             <form onSubmit={handleCreate} className="form form--spaced">

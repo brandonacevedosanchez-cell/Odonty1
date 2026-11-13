@@ -6,6 +6,8 @@ import {
   validateClinicRegistration,
 } from '../src/modules/clinicas/clinicValidation.js';
 
+const pdf = (name = 'documento.pdf', size = 1024, type = 'application/pdf') => ({ name, type, size });
+
 test('calcula el dígito de verificación DIAN módulo 11', () => {
   assert.equal(calculateNitCheckDigit('900123456'), '8');
   assert.equal(calculateNitCheckDigit('123456789'), '6');
@@ -13,14 +15,17 @@ test('calcula el dígito de verificación DIAN módulo 11', () => {
   assert.equal(calculateNitCheckDigit('1234567890123456'), '');
 });
 
-test('valida formato y tamaño de los documentos', () => {
-  assert.equal(validateClinicFile({ name: 'cedula.jpg', type: 'image/jpeg', size: 1024 }, 'la cédula'), '');
-  assert.match(validateClinicFile({ name: 'cedula.gif', type: 'image/gif', size: 1024 }, 'la cédula'), /JPG, PNG o WEBP/);
-  assert.match(validateClinicFile({ name: 'rut.png', type: 'image/png', size: 5 * 1024 * 1024 + 1 }, 'el RUT'), /5 MB/);
+test('solo acepta PDF no vacíos de máximo 5 MB', () => {
+  assert.equal(validateClinicFile(pdf(), 'la cédula'), '');
+  assert.match(validateClinicFile({ name: 'cedula.jpg', type: 'image/jpeg', size: 1024 }, 'la cédula'), /PDF/);
+  assert.match(validateClinicFile(pdf('rut.pdf', 1024, 'image/png'), 'el RUT'), /PDF/);
+  assert.match(validateClinicFile(pdf('rut.pdf', 1024, ''), 'el RUT'), /PDF/);
+  assert.match(validateClinicFile(pdf('rut.pdf', 5 * 1024 * 1024 + 1), 'el RUT'), /5 MB/);
+  assert.match(validateClinicFile(pdf('vacio.pdf', 0), 'el RUT'), /vacío/);
   assert.match(validateClinicFile(null, 'el RUT'), /Selecciona/);
 });
 
-test('valida los datos requeridos de registro de clínica', () => {
+test('valida los datos y los tres PDF del registro de clínica', () => {
   const values = {
     clinic_name: 'Clínica Odonty',
     nit: '900123456',
@@ -32,8 +37,9 @@ test('valida los datos requeridos de registro de clínica', () => {
     password: 'ClaveSegura1!',
   };
   const files = {
-    cedula_file: { name: 'cedula.jpg', type: 'image/jpeg', size: 1024 },
-    rut_file: { name: 'rut.webp', type: 'image/webp', size: 2048 },
+    cedula_file: pdf('cedula.pdf'),
+    rut_file: pdf('rut.pdf'),
+    camara_comercio_file: pdf('camara.pdf'),
   };
 
   assert.deepEqual(validateClinicRegistration(values, files), {
@@ -47,6 +53,11 @@ test('valida los datos requeridos de registro de clínica', () => {
     password: '',
     cedula_file: '',
     rut_file: '',
+    camara_comercio_file: '',
   });
   assert.match(validateClinicRegistration({ ...values, document_number: '12345' }, files).document_number, /6 y 10/);
+  assert.match(
+    validateClinicRegistration(values, { ...files, camara_comercio_file: null }).camara_comercio_file,
+    /Cámara de Comercio/,
+  );
 });

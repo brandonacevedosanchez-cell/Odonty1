@@ -29,7 +29,7 @@ const RULES = [
   'Nadie puede cambiar su propio rol.',
   'Nadie puede modificar el rol del superadministrador.',
   'Un administrador no puede modificar a otro administrador.',
-  'Un administrador solo puede crear o asignar odontólogo, recepcionista y usuario.',
+  'Un administrador solo puede crear o asignar odontólogo y recepcionista.',
   'El superadministrador es el único que puede crear administradores y no se puede crear desde la aplicación.',
 ];
 

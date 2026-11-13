@@ -27,14 +27,6 @@ export const NAV_SECTIONS = [
       { id: 'clinics', label: 'Clínicas', path: '/clinicas', icon: 'home', permission: PERMISSIONS.CLINICS_REVIEW, role: ROLES.SUPER_ADMIN },
     ],
   },
-  {
-    id: 'self',
-    title: 'Mi información',
-    items: [
-      { id: 'my-profile', label: 'Mi perfil de paciente', path: '/mi-perfil', icon: 'user', permission: PERMISSIONS.PATIENTS_SELF },
-      { id: 'my-history', label: 'Mi historia clínica', path: '/mi-historia', icon: 'file-text', permission: PERMISSIONS.CLINICAL_HISTORY_SELF },
-    ],
-  },
 ];
 
 const TITLES = [
@@ -43,8 +35,6 @@ const TITLES = [
   ['/roles', 'Roles y permisos'],
   ['/auditoria', 'Auditoría'],
   ['/clinicas', 'Revisión de clínicas'],
-  ['/mi-perfil', 'Mi perfil de paciente'],
-  ['/mi-historia', 'Mi historia clínica'],
   ['/configuracion', 'Configuración de la cuenta'],
   ...CLINICAL_MODULES.map((m) => [m.path, m.label]),
 ];

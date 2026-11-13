@@ -18,7 +18,9 @@ npm run dev
 
 Vite configura `host: true` y puerto `5173`; normalmente la aplicación queda disponible en `http://localhost:5173`.
 
-El `.env.example` proporciona `VITE_API_URL=https://odontyoriginal-1.onrender.com`. Para otro servidor, editar el `.env` local con la URL base sin barra final, por ejemplo:
+El `.env.example` proporciona `VITE_API_URL=http://localhost:8000`. Para producción, configura
+`VITE_API_URL=https://odontyoriginal-1.onrender.com` en el entorno de compilación. No hay un fallback embebido:
+si falta la variable, las llamadas a la API mostrarán un error de configuración.
 
 ```env
 VITE_API_URL=http://localhost:8000
@@ -28,7 +30,7 @@ Vite incorpora esa variable al compilar. Cambiarla requiere reiniciar el servido
 
 ## Modo actual de la aplicación
 
-La vista previa se activa con `PREVIEW_MODE = true` en `src/config/preview.js`. Por tanto, al abrir la aplicación se entra con un usuario de demostración; varias llamadas se suprimen y las escrituras no se guardan. La mera configuración de `VITE_API_URL` no desactiva ese modo. El cambio de modo está codificado en el archivo fuente; este documento no recomienda modificarlo para esta entrega.
+La vista previa se activa con `VITE_PREVIEW_MODE=true`; en `.env.example` está desactivada. Con vista previa activa se entra con un usuario de demostración y algunas operaciones se sustituyen por datos de muestra.
 
 ## Pruebas y compilación
 
@@ -41,8 +43,6 @@ npm run preview
 - `npm test` ejecuta las pruebas con Node (`node:test`).
 - `npm run build` genera `dist/`.
 - `npm run preview` sirve el build con Vite y `--host`.
-
-En la revisión de documentación se ejecutaron `npm test` y `npm run build`: 35 de 35 pruebas aprobaron y Vite compiló correctamente.
 
 ## Docker
 

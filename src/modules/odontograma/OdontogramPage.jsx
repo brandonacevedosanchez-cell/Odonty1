@@ -16,6 +16,8 @@ import { listPatients } from '../../services/patientsService.js';
 import { getErrorMessage, getFieldErrors } from '../../utils/errors.js';
 import { formatDateTime } from '../../utils/format.js';
 import { PERMISSIONS } from '../../utils/permissions.js';
+import PatientAlertsBanner from '../pacientes/PatientAlertsBanner.jsx';
+import CupsSearch, { CupsCodeLabel } from './CupsSearch.jsx';
 import ToothSurfaceSelector from './ToothSurfaceSelector.jsx';
 import { DENTITION, getSurfaceLabels } from './toothData.js';
 import useToothSelection from './useToothSelection.js';
@@ -145,6 +147,10 @@ export default function OdontogramPage() {
       setFieldErrors({ appointment_id: 'Selecciona la cita asociada al hallazgo.' });
       return;
     }
+    if (!values.condition_code.trim() && !values.procedure_code.trim()) {
+      setFormError('Registra al menos un código de condición o un procedimiento CUPS.');
+      return;
+    }
     setSaving(true);
     try {
       // `surface` es nullable en el contrato: diente completo se envía sin superficie.
@@ -238,6 +244,8 @@ export default function OdontogramPage() {
               {currentQuery.loading && <Spinner size={18} />}
             </div>
 
+            <PatientAlertsBanner patientId={selectedPatient.id} />
+
             {currentQuery.error && (
               <ErrorState message={currentQuery.error} onRetry={() => currentQuery.reload()} title="No se pudo cargar el odontograma" />
             )}
@@ -314,9 +322,9 @@ export default function OdontogramPage() {
                         <dt>{surfaceLabels[entry.surface] ?? entry.surface ?? 'Diente completo'}</dt>
                         <dd>
                           {entry.condition_name || entry.condition_code || '—'}
-                          {entry.procedure_name || entry.procedure_code
-                            ? ` · ${entry.procedure_name || entry.procedure_code}`
-                            : ''}
+                          {(entry.procedure_code || entry.procedure_name) && (
+                            <> · <CupsCodeLabel code={entry.procedure_code} name={entry.procedure_name} /></>
+                          )}
                         </dd>
                       </div>
                     ))
@@ -367,15 +375,25 @@ export default function OdontogramPage() {
                 <label className="field">
                   <span className="field__label">Código de condición</span>
                   <input className="input" value={values.condition_code} onChange={(event) => { setValues((v) => ({ ...v, condition_code: event.target.value })); setFieldErrors((current) => ({ ...current, condition_code: '' })); }} disabled={saving} placeholder="Ej. caries" />
-                  <span className="field__hint">TODO: el catálogo de códigos lo definirá el backend.</span>
+                  <span className="field__hint">El backend valida el código contra los catálogos dentales.</span>
                   <FieldError error={fieldErrors.condition_code} />
                 </label>
-                <label className="field">
-                  <span className="field__label">Código de procedimiento</span>
-                  <input className="input" value={values.procedure_code} onChange={(event) => { setValues((v) => ({ ...v, procedure_code: event.target.value })); setFieldErrors((current) => ({ ...current, procedure_code: '' })); }} disabled={saving} placeholder="Opcional" />
-                  <span className="field__hint">TODO: el catálogo de códigos lo definirá el backend.</span>
-                  <FieldError error={fieldErrors.procedure_code} />
-                </label>
+                <div className="field">
+                  <span className="field__label">Procedimiento CUPS</span>
+                  <CupsSearch
+                    id="odontogram-procedure-code"
+                    value={values.procedure_code}
+                    onChange={(code) => {
+                      setValues((v) => ({ ...v, procedure_code: code }));
+                      setFieldErrors((current) => ({ ...current, procedure_code: '' }));
+                    }}
+                    disabled={saving}
+                    error={fieldErrors.procedure_code}
+                  />
+                  <span className="field__hint">
+                    Busca por código (ej. 2321) o palabras (ej. obturación resina). Debe existir al menos un código de condición o un procedimiento.
+                  </span>
+                </div>
                 <label className="field">
                   <span className="field__label">Notas</span>
                   <textarea className="input module-textarea" value={values.notes} onChange={(event) => { setValues((v) => ({ ...v, notes: event.target.value })); setFieldErrors((current) => ({ ...current, notes: '' })); }} disabled={saving} maxLength={500} />
@@ -424,9 +442,9 @@ export default function OdontogramPage() {
                         <strong>Pieza {entry.tooth_fdi} · {surfaceLabels[entry.surface] ?? entry.surface ?? 'Diente completo'}</strong>
                         <span className="module-muted">
                           {' '}· {entry.condition_name || entry.condition_code || '—'}
-                          {entry.procedure_name || entry.procedure_code
-                            ? ` · ${entry.procedure_name || entry.procedure_code}`
-                            : ''}
+                          {(entry.procedure_code || entry.procedure_name) && (
+                            <> · <CupsCodeLabel code={entry.procedure_code} name={entry.procedure_name} /></>
+                          )}
                         </span>
                       </span>
                       <span className="module-muted">{formatDateTime(entry.created_at)}</span>

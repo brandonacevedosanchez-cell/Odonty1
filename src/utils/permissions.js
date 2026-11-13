@@ -33,9 +33,6 @@ export const PERMISSIONS = Object.freeze({
   // Notificaciones
   NOTIFICATIONS_VIEW: 'notifications.view',
   NOTIFICATIONS_CREATE: 'notifications.create',
-  // Capacidades self-service del rol usuario (solo UI; el backend las expone con Bearer)
-  PATIENTS_SELF: 'patients.self',
-  CLINICAL_HISTORY_SELF: 'clinical_history.self',
 });
 
 // El bypass queda desactivado por defecto para respetar los roles. Solo se puede
@@ -63,8 +60,6 @@ export const PERMISSION_LABELS = {
   [PERMISSIONS.BILLING_VIEW]: 'Consultar facturación y pagos',
   [PERMISSIONS.NOTIFICATIONS_VIEW]: 'Consultar notificaciones',
   [PERMISSIONS.NOTIFICATIONS_CREATE]: 'Crear notificaciones',
-  [PERMISSIONS.PATIENTS_SELF]: 'Mi perfil de paciente',
-  [PERMISSIONS.CLINICAL_HISTORY_SELF]: 'Mi historia clínica',
 };
 
 // Matriz de referencia del frontend. El backend conserva la autorización final.
@@ -132,11 +127,6 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.BILLING_VIEW,
     PERMISSIONS.NOTIFICATIONS_VIEW,
   ],
-  [ROLES.USUARIO]: [
-    PERMISSIONS.PATIENTS_SELF,
-    PERMISSIONS.CLINICAL_HISTORY_SELF,
-    PERMISSIONS.NOTIFICATIONS_VIEW,
-  ],
 };
 
 export const ROLE_LABELS = {
@@ -144,7 +134,6 @@ export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'Administrador',
   [ROLES.ODONTOLOGO]: 'Odontólogo',
   [ROLES.RECEPCIONISTA]: 'Recepcionista',
-  [ROLES.USUARIO]: 'Usuario',
 };
 
 export const ROLE_DESCRIPTIONS = {
@@ -156,8 +145,6 @@ export const ROLE_DESCRIPTIONS = {
     'Acceso a pacientes, agenda, historia clínica y odontograma. Puede registrar consultas y hallazgos clínicos.',
   [ROLES.RECEPCIONISTA]:
     'Acceso a pacientes, agenda, facturación y notificaciones. Puede registrar pacientes y gestionar citas.',
-  [ROLES.USUARIO]:
-    'Acceso a su perfil de paciente, su historia clínica y sus notificaciones.',
 };
 
 export const ALL_ROLES = Object.values(ROLES);

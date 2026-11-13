@@ -1,6 +1,6 @@
 # Formularios y validaciones
 
-Las validaciones locales mejoran la interacción, pero no sustituyen las validaciones del backend. En formularios que sí llaman a la API, el cliente también muestra los errores 422 recibidos cuando puede asociarlos a un campo.
+Las validaciones locales mejoran la interacción, pero no sustituyen las validaciones del backend. Los errores 422 y las reglas de negocio 400/409 conocidas se muestran junto al campo correspondiente.
 
 ## Formularios con intención de integración
 
@@ -11,7 +11,7 @@ Archivo: `src/pages/LoginPage.jsx`.
 - Campos: correo electrónico y contraseña.
 - Reglas: correo obligatorio y formato básico válido; contraseña obligatoria.
 - Se llama al flujo de autenticación del contexto; el código dirige a MFA si el servidor devuelve un token MFA.
-- Estado actual: en `PREVIEW_MODE`, no se envían credenciales; se inicia como usuario de demostración.
+- En `VITE_PREVIEW_MODE=true` se inicia como usuario de demostración; el modo está desactivado por defecto.
 
 ### Verificación MFA
 
@@ -53,7 +53,7 @@ Archivo: `src/modules/clinicas/RegisterClinicPage.jsx`.
 
 - Datos de clínica: nombre, NIT y dígito de verificación.
 - Datos del administrador: correo, nombre completo, documento, teléfono y contraseña.
-- Archivos: cédula del administrador y RUT de la clínica.
+- Archivos obligatorios: cédula del representante, RUT y certificado de Cámara de Comercio.
 - Nombre de clínica: obligatorio, al menos 3 caracteres.
 - NIT: obligatorio, dígitos. Se muestra una sugerencia de dígito verificador con cálculo módulo 11; el servidor debe validarlo.
 - Dígito verificador: obligatorio, un solo dígito.
@@ -62,18 +62,18 @@ Archivo: `src/modules/clinicas/RegisterClinicPage.jsx`.
 - Nombre de administrador: obligatorio (no se aplica límite de longitud visible en esta validación).
 - Teléfono: obligatorio, 10 dígitos.
 - Contraseña: reglas de 8–128 caracteres, minúscula, mayúscula, número y símbolo.
-- Archivos: extensiones JPG/JPEG/PNG/WEBP y MIME permitido cuando está disponible; no vacíos, máximo 5 MB cada uno.
+- Archivos: solo PDF, no vacíos y máximo 5 MB cada uno; el cliente valida MIME/tamaño y el backend verifica el contenido real.
 - Todos los campos se envían en `FormData`; se muestra éxito o errores del servidor.
 - La ruta es pública, pero el resultado real depende de API y validación backend.
 
-## Controles de interfaz sin formulario funcional
+## Módulos con formularios y servicios de API
 
 | Vista | Campos/controles visuales | Estado |
 | --- | --- | --- |
-| Pacientes | Nombre, tipo/número de documento, nacimiento, teléfono, correo, dirección, información adicional y búsqueda. | Campos no controlados, sin reglas conocidas ni envío; guardar deshabilitado. Obligatoriedad/modelo: PENDIENTE DE CONFIRMAR CON BACKEND. |
-| Citas | Paciente, odontólogo, fecha, hora, duración, estado, motivo; filtros por odontólogo y estado. | Catálogos y filtros deshabilitados; guardar deshabilitado; no se valida ni envía. |
-| Historia clínica | Campo de búsqueda y pestañas. | Solo interacción visual, sin búsqueda real. |
-| Odontograma | Controles de dentición/arcada y selección de pieza. | No es un formulario de diagnóstico; no hay captura ni persistencia clínica. |
+| Pacientes | Alta rápida por documento, verificación previa, responsable condicional para menores, alertas médicas y edición parcial. | Integrado con `/patients`; el duplicado 409 permite abrir la ficha existente. |
+| Citas | Paciente, odontólogo, fecha, hora, duración, estado, motivo; filtros por odontólogo y estado. | Usa los servicios de `/appointments`; confirmar permisos y conectividad en el entorno backend. |
+| Historia clínica | Búsqueda por paciente, registros y formulario asociado a cita. | Usa `/clinical-history` y muestra alertas médicas antes de atender. |
+| Odontograma | Dentición, arcada, pieza, superficies, condición y procedimiento CUPS. | Usa `/odontogram` y el buscador oficial `/catalogs/cups`; muestra alertas médicas. |
 | Facturación | Búsqueda, filtros de estado y período, botón de pago. | Filtros/acción deshabilitados; sin datos ni cálculo. |
 | Notificaciones | Filtro Todas/Sin leer. | No lee, actualiza ni marca notificaciones; selección solo visual. |
 

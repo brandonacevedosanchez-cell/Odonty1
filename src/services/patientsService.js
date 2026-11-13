@@ -1,17 +1,19 @@
 import { buildQuery, request, requestPaginated } from './apiClient.js';
-import { clampApiListLimit } from '../utils/pagination.js';
+import { clampApiListLimit, clampApiListOffset } from '../utils/pagination.js';
 
 /**
- * Capa de servicios de /patients. Contrato: docs/openapi.json
- * (PatientRegisterIn, PatientCreateIn, PatientUpdateIn, PatientOut, PatientCheckOut).
+ * Capa de servicios de /patients según el contrato del 13-nov-2026.
+ * Los pacientes no son usuarios: no tienen cuenta, contraseña ni login, y
+ * pertenecen a una única clínica. El documento es único por clínica.
  *
  * @typedef {Object} PatientOut
  * @property {number} id
- * @property {number} user_id
+ * @property {number} clinic_id
  * @property {string} full_name
- * @property {string} email
- * @property {string} document_number
  * @property {string} document_type
+ * @property {string} document_number
+ * @property {string} email
+ * @property {string} phone_number
  * @property {string|null} birth_date
  * @property {boolean} is_minor
  * @property {string|null} gender
@@ -25,19 +27,25 @@ import { clampApiListLimit } from '../utils/pagination.js';
  * @property {string|null} emergency_contact_name
  * @property {string|null} emergency_contact_phone
  * @property {string|null} allergies
+ * @property {string|null} current_medications
+ * @property {string|null} medical_conditions
  * @property {string|null} notes
  *
  * @typedef {Object} PatientCheckOut
- * @property {boolean} user_exists
- * @property {number|null} user_id
+ * @property {boolean} exists
+ * @property {number|null} patient_id
  * @property {string|null} full_name
- * @property {string|null} email
- * @property {string|null} document_number
- * @property {boolean} has_patient_profile
- * @property {boolean} same_clinic
+ *
+ * @typedef {Object} PatientAlertsOut
+ * @property {number} patient_id
+ * @property {string} full_name
+ * @property {string|null} allergies
+ * @property {string|null} current_medications
+ * @property {string|null} medical_conditions
+ * @property {boolean} has_alerts
  */
 
-/** Campos clínicos compartidos por PatientCreateIn, PatientRegisterIn y PatientUpdateIn. */
+/** Campos clínicos compartidos por PatientCreateIn y PatientUpdateIn. */
 export const PATIENT_CLINICAL_FIELDS = Object.freeze([
   'document_type',
   'birth_date',
@@ -52,11 +60,22 @@ export const PATIENT_CLINICAL_FIELDS = Object.freeze([
   'emergency_contact_name',
   'emergency_contact_phone',
   'allergies',
+  'current_medications',
+  'medical_conditions',
   'notes',
 ]);
 
-/** PatientRegisterIn = datos obligatorios del usuario + campos clínicos opcionales. */
-export const PATIENT_REGISTER_FIELDS = Object.freeze([
+/** PatientCreateIn: datos obligatorios + campos clínicos. */
+export const PATIENT_CREATE_FIELDS = Object.freeze([
+  'full_name',
+  'email',
+  'document_number',
+  'phone_number',
+  ...PATIENT_CLINICAL_FIELDS,
+]);
+
+/** PatientUpdateIn permite editar también los datos personales. */
+export const PATIENT_UPDATE_FIELDS = Object.freeze([
   'full_name',
   'email',
   'document_number',
@@ -81,54 +100,75 @@ const cleanNullable = (payload) =>
 const pick = (payload, fields) =>
   Object.fromEntries(fields.filter((field) => field in payload).map((field) => [field, payload[field]]));
 
+const normalize = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return typeof value === 'string' ? value.trim() : value;
+};
+
+/**
+ * Construye el cuerpo de PATCH /patients/{id} con solo los campos que cambiaron.
+ * Los campos opcionales vaciados se envían como null.
+ */
+export function buildPatientUpdate(original, values) {
+  const body = {};
+  for (const field of PATIENT_UPDATE_FIELDS) {
+    if (!(field in values)) continue;
+    const previous = normalize(original?.[field]) ?? '';
+    const next = normalize(values[field]) ?? '';
+    if (previous === next) continue;
+    body[field] = next === '' ? null : next;
+  }
+  return body;
+}
+
 /** GET /patients/check (permiso patients.create). Devuelve PatientCheckOut. */
-export const checkPatient = ({ email, documentNumber }) =>
-  request(`/patients/check${buildQuery({ email, document_number: documentNumber })}`);
+export const checkPatient = ({ documentNumber, documentType = 'CC' }) =>
+  request(
+    `/patients/check${buildQuery({
+      document_type: documentType,
+      document_number: documentNumber,
+    })}`,
+  );
 
 /** GET /patients (permiso patients.view). Devuelve { data, total }. */
-export const listPatients = ({ search = '', limit = 20, offset = 0 } = {}) =>
-  requestPaginated(`/patients${buildQuery({ search, limit: clampApiListLimit(limit), offset })}`);
+export const listPatients = ({ search = '', limit = 50, offset = 0 } = {}) =>
+  requestPaginated(`/patients${buildQuery({
+    search,
+    limit: clampApiListLimit(limit),
+    offset: clampApiListOffset(offset),
+  })}`);
 
 /** GET /patients/{id} (permiso patients.view). */
 export const getPatient = (patientId) => request(`/patients/${encodeURIComponent(patientId)}`);
 
-/** POST /patients (permiso patients.create). Body: PatientRegisterIn. */
+/** GET /patients/{patient_id}/alerts (permiso patients.view). */
+export const getPatientAlerts = (patientId) =>
+  request(`/patients/${encodeURIComponent(patientId)}/alerts`);
+
+/** POST /patients (permiso patients.create). Body: PatientCreateIn. */
 export const createPatient = (payload) =>
   request('/patients', {
     method: 'POST',
-    body: clean(pick(payload, PATIENT_REGISTER_FIELDS)),
+    body: clean(pick(payload, PATIENT_CREATE_FIELDS)),
   });
 
-/**
- * Vincula un paciente que ya existe como usuario en otra clínica.
- *
- * El contrato actual (docs/openapi.json) no publica un endpoint dedicado para
- * vincular pacientes entre clínicas. La única vía disponible es POST /patients
- * con PatientRegisterIn, que crea el perfil del paciente en la clínica actual.
- * Si el backend agrega un endpoint específico, reemplazar esta función.
- */
-export const linkPatient = (payload) => createPatient(payload);
-
-/** PATCH /patients/{id} (permiso patients.edit). Body: PatientUpdateIn. */
+/** PATCH /patients/{id} (permiso patients.edit). Body: solo los campos que cambian. */
 export const updatePatient = (patientId, payload) =>
   request(`/patients/${encodeURIComponent(patientId)}`, {
     method: 'PATCH',
-    body: cleanNullable(pick(payload, PATIENT_CLINICAL_FIELDS)),
+    body: cleanNullable(pick(payload, PATIENT_UPDATE_FIELDS)),
   });
 
-/** POST /patients/me (Bearer). Body: PatientCreateIn. */
-export const createMyPatientProfile = (payload) =>
-  request('/patients/me', {
-    method: 'POST',
-    body: clean(pick(payload, PATIENT_CLINICAL_FIELDS)),
-  });
+/** Extrae el id del 409 "Ya existe un paciente con ese documento en esta clinica (id=…)". */
+export function extractPatientIdFromConflict(message) {
+  const match = String(message ?? '').match(/\(id=(\d+)\)/i);
+  return match ? Number(match[1]) : null;
+}
 
-/** GET /patients/me (Bearer). */
-export const getMyPatientProfile = () => request('/patients/me');
-
-/** PATCH /patients/me (Bearer). Body: PatientUpdateIn. */
-export const updateMyPatientProfile = (payload) =>
-  request('/patients/me', {
-    method: 'PATCH',
-    body: cleanNullable(pick(payload, PATIENT_CLINICAL_FIELDS)),
-  });
+/** Indica si PatientOut/PatientAlertsOut trae al menos una alerta médica. */
+export function hasMedicalAlerts(patient) {
+  return ['allergies', 'current_medications', 'medical_conditions'].some(
+    (field) => String(patient?.[field] ?? '').trim() !== '',
+  );
+}

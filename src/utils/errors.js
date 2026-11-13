@@ -51,11 +51,27 @@ export function parseValidationErrors(detail) {
   return { fieldErrors, messages };
 }
 
+function parseBusinessFieldErrors(status, detail) {
+  if (typeof detail !== 'string') return {};
+  const message = stripValueError(detail);
+
+  if (status === 400) {
+    const match = message.match(/^El campo\s+([a-z_]+)\s+no puede quedar vac[ií]o\.?$/i);
+    if (match) return { [match[1]]: message };
+  }
+
+  if (status === 409 && /^Ya existe un paciente con ese documento en esta cl[ií]nica\b/i.test(message)) {
+    return { document_number: message };
+  }
+
+  return {};
+}
+
 /**
  * Error normalizado de la API.
  *  - status 0: error de red o tiempo de espera agotado (no es un fallo de autenticación).
  *  - code: código de negocio cuando `detail` es un objeto (p. ej. PASSWORD_CHANGE_REQUIRED).
- *  - fieldErrors: errores por campo en respuestas 422.
+ *  - fieldErrors: errores por campo en respuestas 400, 409 y 422.
  */
 export class ApiError extends Error {
   constructor({ status = 0, detail = null, code = null } = {}) {
@@ -64,7 +80,9 @@ export class ApiError extends Error {
     this.status = status;
     this.detail = detail;
     this.code = code ?? (detail && typeof detail === 'object' && !Array.isArray(detail) ? detail.code ?? null : null);
-    this.fieldErrors = status === 422 ? parseValidationErrors(detail).fieldErrors : {};
+    this.fieldErrors = status === 422
+      ? parseValidationErrors(detail).fieldErrors
+      : parseBusinessFieldErrors(status, detail);
   }
 
   get isNetwork() {
@@ -73,6 +91,7 @@ export class ApiError extends Error {
 }
 
 function buildMessage(status, detail) {
+  if (status === 0 && typeof detail === 'string' && detail.trim()) return stripValueError(detail);
   if (status === 502 && typeof detail === 'string' && detail.trim()) return stripValueError(detail);
   if (status >= 500) return DEFAULT_MESSAGES[500];
 
@@ -98,5 +117,5 @@ export function getErrorMessage(error) {
 }
 
 export function getFieldErrors(error) {
-  return error instanceof ApiError && error.status === 422 ? error.fieldErrors : {};
+  return error instanceof ApiError ? error.fieldErrors : {};
 }

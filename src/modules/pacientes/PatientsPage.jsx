@@ -6,31 +6,45 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { useAsync } from '../../hooks/useAsync.js';
 import { usePermissions } from '../../hooks/usePermissions.js';
 import {
+  buildPatientUpdate,
   checkPatient,
   createPatient,
+  extractPatientIdFromConflict,
   getPatient,
-  linkPatient,
+  hasMedicalAlerts,
   listPatients,
   updatePatient,
 } from '../../services/patientsService.js';
 import { ApiError, getErrorMessage, getFieldErrors } from '../../utils/errors.js';
 import { PERMISSIONS } from '../../utils/permissions.js';
 import {
+  isMinor,
+  validateBirthDate,
   validateEmail,
   validateFullName,
+  validateOptionalText,
   validatePatientDocument,
-  validatePhone,
   validateRequired,
 } from '../../utils/validators.js';
 import PatientClinicalFields, {
   DOCUMENT_TYPES,
   EpsField,
   GenderField,
+  RequiredMark,
 } from './PatientClinicalFields.jsx';
 
 const LIMIT = 10;
+const OPTIONAL_TEXT_LIMITS = {
+  eps: 100,
+  address: 255,
+  guardian_full_name: 150,
+  guardian_relationship: 50,
+  emergency_contact_name: 150,
+  allergies: 1000,
+  current_medications: 1000,
+  medical_conditions: 1000,
+};
 
-/** Datos mínimos para el registro rápido desde recepción. */
 const EMPTY_CREATE = {
   first_name: '',
   last_name: '',
@@ -38,31 +52,40 @@ const EMPTY_CREATE = {
   document_number: '',
   email: '',
   phone_number: '',
+  birth_date: '',
   gender: '',
   eps: '',
+  guardian_full_name: '',
+  guardian_document_number: '',
+  guardian_phone: '',
+  guardian_relationship: '',
+  allergies: '',
+  current_medications: '',
+  medical_conditions: '',
 };
 
-/** Campos clínicos opcionales que se completan después, en el detalle del paciente. */
-const EMPTY_CLINICAL = {
+const EMPTY_EDIT = {
+  full_name: '',
   document_type: 'CC',
+  document_number: '',
+  email: '',
+  phone_number: '',
   birth_date: '',
   gender: '',
   blood_type: '',
   address: '',
   eps: '',
-  allergies: '',
-  notes: '',
   guardian_full_name: '',
   guardian_document_number: '',
   guardian_phone: '',
   guardian_relationship: '',
   emergency_contact_name: '',
   emergency_contact_phone: '',
+  allergies: '',
+  current_medications: '',
+  medical_conditions: '',
+  notes: '',
 };
-
-function RequiredMark() {
-  return <span className="field__required" aria-hidden="true">*</span>;
-}
 
 function patientName(patient) {
   return patient?.full_name ?? patient?.name ?? '—';
@@ -70,6 +93,26 @@ function patientName(patient) {
 
 function patientDocument(patient) {
   return [patient?.document_type, patient?.document_number].filter(Boolean).join(' ') || '—';
+}
+
+function toEditValues(patient) {
+  return Object.fromEntries(
+    Object.keys(EMPTY_EDIT).map((field) => [field, patient?.[field] ?? '']),
+  );
+}
+
+function guardianErrors(values, minor) {
+  if (!minor) return {};
+  return {
+    guardian_full_name:
+      validateRequired(values.guardian_full_name, 'El nombre del responsable')
+      || validateOptionalText(values.guardian_full_name, OPTIONAL_TEXT_LIMITS.guardian_full_name, 'El nombre del responsable'),
+    guardian_document_number: validateRequired(values.guardian_document_number, 'El documento del responsable'),
+    guardian_phone: validateRequired(values.guardian_phone, 'El teléfono del responsable'),
+    guardian_relationship:
+      validateRequired(values.guardian_relationship, 'El parentesco')
+      || validateOptionalText(values.guardian_relationship, OPTIONAL_TEXT_LIMITS.guardian_relationship, 'El parentesco'),
+  };
 }
 
 export default function PatientsPage() {
@@ -88,12 +131,14 @@ export default function PatientsPage() {
   const [serverErrors, setServerErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [check, setCheck] = useState(null);
+  const [checkMessage, setCheckMessage] = useState(null);
+  const [conflictPatientId, setConflictPatientId] = useState(null);
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [selected, setSelected] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [editValues, setEditValues] = useState(EMPTY_CLINICAL);
+  const [editValues, setEditValues] = useState(EMPTY_EDIT);
   const [editError, setEditError] = useState('');
   const [editFieldErrors, setEditFieldErrors] = useState({});
   const [editSaving, setEditSaving] = useState(false);
@@ -120,6 +165,8 @@ export default function PatientsPage() {
     .map((part) => part.trim())
     .filter(Boolean)
     .join(' ');
+  const createIsMinor = isMinor(values.birth_date);
+  const editIsMinor = isMinor(editValues.birth_date);
 
   const errors = useMemo(() => {
     const firstNameError = validateRequired(values.first_name, 'El nombre');
@@ -131,22 +178,91 @@ export default function PatientsPage() {
       document_type: validateRequired(values.document_type, 'El tipo de documento'),
       document_number: validatePatientDocument(values.document_number),
       email: validateEmail(values.email),
-      phone_number: validatePhone(values.phone_number),
+      phone_number: validateRequired(values.phone_number, 'El teléfono'),
+      birth_date: validateBirthDate(values.birth_date),
       gender: validateRequired(values.gender, 'El sexo'),
+      eps: validateOptionalText(values.eps, OPTIONAL_TEXT_LIMITS.eps, 'La EPS'),
+      guardian_full_name: validateOptionalText(
+        values.guardian_full_name,
+        OPTIONAL_TEXT_LIMITS.guardian_full_name,
+        'El nombre del responsable',
+      ),
+      guardian_relationship: validateOptionalText(
+        values.guardian_relationship,
+        OPTIONAL_TEXT_LIMITS.guardian_relationship,
+        'El parentesco',
+      ),
+      allergies: validateOptionalText(values.allergies, OPTIONAL_TEXT_LIMITS.allergies, 'Las alergias'),
+      current_medications: validateOptionalText(
+        values.current_medications,
+        OPTIONAL_TEXT_LIMITS.current_medications,
+        'Los medicamentos actuales',
+      ),
+      medical_conditions: validateOptionalText(
+        values.medical_conditions,
+        OPTIONAL_TEXT_LIMITS.medical_conditions,
+        'Las condiciones médicas',
+      ),
+      ...guardianErrors(values, createIsMinor),
     };
-  }, [values, fullName]);
+  }, [values, fullName, createIsMinor]);
+
+  const editErrors = useMemo(() => ({
+    full_name: validateFullName(editValues.full_name),
+    document_type: validateRequired(editValues.document_type, 'El tipo de documento'),
+    document_number: validatePatientDocument(editValues.document_number),
+    email: validateEmail(editValues.email),
+    phone_number: validateRequired(editValues.phone_number, 'El teléfono'),
+    birth_date: validateBirthDate(editValues.birth_date),
+    gender: validateRequired(editValues.gender, 'El sexo'),
+    eps: validateOptionalText(editValues.eps, OPTIONAL_TEXT_LIMITS.eps, 'La EPS'),
+    address: validateOptionalText(editValues.address, OPTIONAL_TEXT_LIMITS.address, 'La dirección'),
+    guardian_full_name: validateOptionalText(
+      editValues.guardian_full_name,
+      OPTIONAL_TEXT_LIMITS.guardian_full_name,
+      'El nombre del responsable',
+    ),
+    guardian_relationship: validateOptionalText(
+      editValues.guardian_relationship,
+      OPTIONAL_TEXT_LIMITS.guardian_relationship,
+      'El parentesco',
+    ),
+    emergency_contact_name: validateOptionalText(
+      editValues.emergency_contact_name,
+      OPTIONAL_TEXT_LIMITS.emergency_contact_name,
+      'El nombre del contacto de emergencia',
+    ),
+    allergies: validateOptionalText(editValues.allergies, OPTIONAL_TEXT_LIMITS.allergies, 'Las alergias'),
+    current_medications: validateOptionalText(
+      editValues.current_medications,
+      OPTIONAL_TEXT_LIMITS.current_medications,
+      'Los medicamentos actuales',
+    ),
+    medical_conditions: validateOptionalText(
+      editValues.medical_conditions,
+      OPTIONAL_TEXT_LIMITS.medical_conditions,
+      'Las condiciones médicas',
+    ),
+    ...guardianErrors(editValues, editIsMinor),
+  }), [editValues, editIsMinor]);
 
   const showError = (field) => serverErrors[field] || (touched[field] || touched.all ? errors[field] : '');
-  const alreadyRegisteredHere = Boolean(
-    check?.user_exists && check?.has_patient_profile && check?.same_clinic,
-  );
+  const showEditError = (field) => editFieldErrors[field] || editErrors[field];
 
   const updateField = (field, value) => {
     setValues((current) => ({ ...current, [field]: value }));
     setServerErrors((current) => ({ ...current, [field]: '' }));
     setCheck(null);
+    setCheckMessage(null);
+    setConflictPatientId(null);
+    setFormError('');
   };
-  const update = (field) => (event) => updateField(field, event.target.value);
+  const update = (field) => (event) => {
+    const value = field === 'document_number'
+      ? event.target.value.replace(/\D/g, '').slice(0, 10)
+      : event.target.value;
+    updateField(field, value);
+  };
   const blur = (field) => () => setTouched((current) => ({ ...current, [field]: true }));
 
   function openCreate() {
@@ -155,26 +271,45 @@ export default function PatientsPage() {
     setServerErrors({});
     setFormError('');
     setCheck(null);
+    setCheckMessage(null);
+    setConflictPatientId(null);
     setFormOpen(true);
   }
 
-  async function verifyExisting() {
+  async function verifyExisting({ silent = false } = {}) {
     if (checking) return null;
-    if (!values.email.trim() && !values.document_number.trim()) {
-      setFormError('Ingresa el correo o el número de documento para verificar si el paciente ya existe.');
+    const documentError = validatePatientDocument(values.document_number);
+    if (documentError) {
+      if (!silent) setFormError('Ingresa un número de documento válido para verificar si el paciente ya existe.');
       return null;
     }
     setChecking(true);
     setFormError('');
+    setCheckMessage(null);
     try {
       const result = await checkPatient({
-        email: values.email.trim(),
+        documentType: values.document_type || 'CC',
         documentNumber: values.document_number.trim(),
       });
       setCheck(result ?? null);
+      if (result?.exists) {
+        setCheckMessage({
+          type: 'info',
+          text: 'Este paciente ya está registrado en tu clínica.',
+        });
+      } else if (!silent) {
+        setCheckMessage({
+          type: 'info',
+          text: 'No encontramos un paciente con ese documento en tu clínica. Puedes registrarlo.',
+        });
+      }
       return result;
     } catch (checkError) {
-      setFormError(getErrorMessage(checkError));
+      setCheck(null);
+      setCheckMessage({
+        type: 'info',
+        text: `No pudimos verificar el documento (${getErrorMessage(checkError)}). Puedes guardar: si ya existe, la API responderá con el conflicto.`,
+      });
       return null;
     } finally {
       setChecking(false);
@@ -187,55 +322,62 @@ export default function PatientsPage() {
     setTouched({ all: true });
     setFormError('');
     setServerErrors({});
+    setConflictPatientId(null);
     if (Object.values(errors).some(Boolean)) return;
 
     setSaving(true);
     try {
-      // La verificación es informativa: si falla, se intenta crear de todos modos.
+      // La verificación es informativa: un fallo de red no bloquea el alta.
       let existing = check;
       if (!existing) {
         try {
           existing = await checkPatient({
-            email: values.email.trim(),
+            documentType: values.document_type || 'CC',
             documentNumber: values.document_number.trim(),
           });
           setCheck(existing);
-        } catch {
+        } catch (checkError) {
+          if (!(checkError instanceof ApiError) || checkError.status !== 0) throw checkError;
           existing = null;
         }
       }
 
-      if (existing?.user_exists && existing?.has_patient_profile && existing?.same_clinic) {
-        setFormError('Este paciente ya está registrado en tu clínica. Búscalo en el listado para consultar o editar sus datos.');
+      if (existing?.exists) {
+        setCheckMessage({
+          type: 'info',
+          text: 'Este paciente ya está registrado en tu clínica.',
+        });
         return;
       }
 
-      const payload = {
+      await createPatient({
         full_name: fullName,
         email: values.email.trim(),
         document_number: values.document_number.trim(),
         phone_number: values.phone_number.trim(),
         document_type: values.document_type,
+        birth_date: values.birth_date,
         gender: values.gender,
         eps: values.eps || undefined,
-      };
+        allergies: values.allergies || undefined,
+        current_medications: values.current_medications || undefined,
+        medical_conditions: values.medical_conditions || undefined,
+        ...(createIsMinor
+          ? {
+              guardian_full_name: values.guardian_full_name.trim(),
+              guardian_document_number: values.guardian_document_number.trim(),
+              guardian_phone: values.guardian_phone.trim(),
+              guardian_relationship: values.guardian_relationship.trim(),
+            }
+          : {}),
+      });
 
-      if (existing?.user_exists) {
-        await linkPatient(payload);
-      } else {
-        await createPatient(payload);
-      }
-
-      toast.success(
-        existing?.user_exists
-          ? 'Paciente vinculado a la clínica correctamente.'
-          : 'Paciente registrado correctamente.',
-      );
+      toast.success('Paciente registrado correctamente.');
       setFormOpen(false);
       setOffset(0);
       reload();
     } catch (createError) {
-      if (createError instanceof ApiError && createError.status === 422) {
+      if (createError instanceof ApiError && (createError.status === 422 || createError.status === 400)) {
         const fieldErrors = getFieldErrors(createError);
         if (fieldErrors.full_name) {
           fieldErrors.first_name = fieldErrors.full_name;
@@ -244,7 +386,10 @@ export default function PatientsPage() {
         setServerErrors(fieldErrors);
         setFormError(Object.keys(fieldErrors).length ? '' : getErrorMessage(createError));
       } else if (createError instanceof ApiError && createError.status === 409) {
-        setFormError('No fue posible vincular al paciente porque ya existe un registro con estos datos. Verifica el documento y el correo, o búscalo en el listado.');
+        const message = getErrorMessage(createError);
+        setServerErrors({ document_number: message });
+        setConflictPatientId(extractPatientIdFromConflict(message));
+        setFormError(message);
       } else {
         setFormError(getErrorMessage(createError));
       }
@@ -255,7 +400,7 @@ export default function PatientsPage() {
 
   async function openPatient(patient) {
     setSelected(patient);
-    setEditValues({ ...EMPTY_CLINICAL, ...patient });
+    setEditValues(toEditValues(patient));
     setEditError('');
     setEditFieldErrors({});
     setDetailLoading(true);
@@ -263,7 +408,7 @@ export default function PatientsPage() {
       const detail = await getPatient(patient.id);
       if (detail) {
         setSelected(detail);
-        setEditValues({ ...EMPTY_CLINICAL, ...detail });
+        setEditValues(toEditValues(detail));
       }
     } catch (detailError) {
       setEditError(getErrorMessage(detailError));
@@ -272,17 +417,33 @@ export default function PatientsPage() {
     }
   }
 
+  async function goToPatient(patientId) {
+    if (!patientId) return;
+    setFormOpen(false);
+    setCheckMessage(null);
+    setConflictPatientId(null);
+    const found = patients.find((patient) => patient.id === patientId);
+    await openPatient(found ?? { id: patientId });
+  }
+
   async function handleUpdate(event) {
     event.preventDefault();
     if (!selected || editSaving) return;
-    setEditSaving(true);
     setEditError('');
     setEditFieldErrors({});
+    if (Object.values(editErrors).some(Boolean)) return;
+    const changes = buildPatientUpdate(selected, editValues);
+    if (Object.keys(changes).length === 0) {
+      toast.info('No hay cambios por guardar.');
+      return;
+    }
+    setEditSaving(true);
     try {
-      const updated = await updatePatient(selected.id, editValues);
+      const updated = await updatePatient(selected.id, changes);
       toast.success('Datos del paciente actualizados.');
-      setSelected(updated && typeof updated === 'object' ? updated : { ...selected, ...editValues });
-      setEditValues((current) => ({ ...current, ...(updated && typeof updated === 'object' ? updated : {}) }));
+      const next = updated && typeof updated === 'object' ? updated : { ...selected, ...editValues };
+      setSelected(next);
+      setEditValues(toEditValues(next));
       reload({ silent: true });
     } catch (updateError) {
       const fieldErrors = getFieldErrors(updateError);
@@ -293,11 +454,24 @@ export default function PatientsPage() {
     }
   }
 
+  const updateEdit = (field, value) => {
+    const nextValue = field === 'document_number'
+      ? value.replace(/\D/g, '').slice(0, 10)
+      : value;
+    setEditValues((current) => ({ ...current, [field]: nextValue }));
+    setEditFieldErrors((current) => ({ ...current, [field]: '' }));
+  };
+  const editInput = (field) => ({
+    value: editValues[field] ?? '',
+    onChange: (event) => updateEdit(field, event.target.value),
+    disabled: !canEdit || editSaving,
+  });
+
   return (
     <>
       <PageHeader
         title="Pacientes"
-        description="Consulta, registra y actualiza la información clínica de tus pacientes."
+        description="Consulta, registra y actualiza la información clínica de los pacientes de tu clínica."
         actions={
           canCreate && (
             <button type="button" className="btn btn--primary" onClick={openCreate}>
@@ -313,7 +487,7 @@ export default function PatientsPage() {
             <div>
               <h2 className="panel__title" id="patient-form-heading">Nuevo paciente</h2>
               <p className="module-muted">
-                Registro rápido. Los datos clínicos opcionales se completan después desde el detalle del paciente.
+                Registro rápido. Los datos opcionales se completan después desde la ficha del paciente.
               </p>
             </div>
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFormOpen(false)} disabled={saving}>
@@ -322,16 +496,30 @@ export default function PatientsPage() {
           </div>
 
           <form onSubmit={handleCreate} noValidate className="form form--spaced">
-            {formError && <Alert type="error">{formError}</Alert>}
-            {!saving && !formError && check && (
-              <Alert type="info">
-                {alreadyRegisteredHere
-                  ? `El paciente ${check.full_name ?? ''} ya está registrado en tu clínica. Búscalo en el listado para consultar o editar sus datos.`
-                  : check.user_exists && check.same_clinic
-                    ? `El usuario ${check.full_name ?? ''} ya existe en tu clínica y todavía no tiene perfil de paciente. Al guardar se creará el perfil.`
-                    : check.user_exists
-                      ? `Encontramos a ${check.full_name ?? 'este usuario'} registrado en otra clínica. Al guardar se vinculará como paciente de esta clínica.`
-                      : 'No encontramos un usuario con estos datos. Al guardar se creará el paciente con una contraseña temporal.'}
+            {formError && (
+              <Alert type="error">
+                {formError}
+                {conflictPatientId && (
+                  <>
+                    {' '}
+                    <button type="button" className="link-button" onClick={() => goToPatient(conflictPatientId)}>
+                      Ir a su ficha
+                    </button>
+                  </>
+                )}
+              </Alert>
+            )}
+            {!saving && !formError && checkMessage && (
+              <Alert type={checkMessage.type}>
+                {checkMessage.text}
+                {check?.exists && check.patient_id && (
+                  <>
+                    {' '}
+                    <button type="button" className="link-button" onClick={() => goToPatient(check.patient_id)}>
+                      Ir a su ficha
+                    </button>
+                  </>
+                )}
               </Alert>
             )}
 
@@ -400,6 +588,7 @@ export default function PatientsPage() {
                   onBlur={blur('email')}
                   disabled={saving}
                   autoComplete="off"
+                  maxLength={255}
                   required
                 />
                 {showError('email') && <p className="field__error">{showError('email')}</p>}
@@ -417,6 +606,19 @@ export default function PatientsPage() {
                   required
                 />
                 {showError('phone_number') && <p className="field__error">{showError('phone_number')}</p>}
+              </label>
+              <label className="field">
+                <span className="field__label">Fecha de nacimiento <RequiredMark /></span>
+                <input
+                  className="input"
+                  type="date"
+                  value={values.birth_date}
+                  onChange={update('birth_date')}
+                  onBlur={blur('birth_date')}
+                  disabled={saving}
+                  required
+                />
+                {showError('birth_date') && <p className="field__error">{showError('birth_date')}</p>}
               </label>
               <label className="field">
                 <span className="field__label">Sexo <RequiredMark /></span>
@@ -439,8 +641,65 @@ export default function PatientsPage() {
               </div>
             </div>
 
+            {createIsMinor && (
+              <>
+                <div className="module-muted form-group-title">
+                  <Icon name="users" size={15} /> Datos del responsable (obligatorios para menores de edad)
+                </div>
+                <div className="module-form-grid">
+                  <label className="field">
+                    <span className="field__label">Nombre del responsable <RequiredMark /></span>
+                    <input className="input" maxLength={150} required {...{ value: values.guardian_full_name, onChange: update('guardian_full_name'), disabled: saving }} />
+                    {showError('guardian_full_name') && <p className="field__error">{showError('guardian_full_name')}</p>}
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Documento del responsable <RequiredMark /></span>
+                    <input className="input" required {...{ value: values.guardian_document_number, onChange: update('guardian_document_number'), disabled: saving }} />
+                    {showError('guardian_document_number') && <p className="field__error">{showError('guardian_document_number')}</p>}
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Teléfono del responsable <RequiredMark /></span>
+                    <input className="input" type="tel" required {...{ value: values.guardian_phone, onChange: update('guardian_phone'), disabled: saving }} />
+                    {showError('guardian_phone') && <p className="field__error">{showError('guardian_phone')}</p>}
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Parentesco <RequiredMark /></span>
+                    <input className="input" maxLength={50} required {...{ value: values.guardian_relationship, onChange: update('guardian_relationship'), disabled: saving }} />
+                    {showError('guardian_relationship') && <p className="field__error">{showError('guardian_relationship')}</p>}
+                  </label>
+                </div>
+              </>
+            )}
+
+            <details className="form-collapsible section">
+              <summary>
+                <Icon name="alert-circle" size={16} /> Alertas médicas (opcional)
+              </summary>
+              <div className="module-form-grid form-collapsible__body">
+                {[
+                  ['allergies', 'Alergias'],
+                  ['current_medications', 'Medicamentos actuales'],
+                  ['medical_conditions', 'Condiciones médicas'],
+                ].map(([field, label]) => (
+                  <label className="field module-form-grid__wide" key={field}>
+                    <span className="field__label">{label}</span>
+                    <textarea
+                      className="input module-textarea"
+                      value={values[field]}
+                      onChange={update(field)}
+                      disabled={saving}
+                      maxLength={1000}
+                      placeholder="Opcional"
+                    />
+                    <span className="field__hint">Máximo 1000 caracteres.</span>
+                    {showError(field) && <p className="field__error">{showError(field)}</p>}
+                  </label>
+                ))}
+              </div>
+            </details>
+
             <div className="form__actions">
-              <button type="button" className="btn btn--secondary" onClick={verifyExisting} disabled={saving || checking}>
+              <button type="button" className="btn btn--secondary" onClick={() => verifyExisting()} disabled={saving || checking}>
                 {checking ? <Spinner size={16} /> : <Icon name="search" size={16} />} Verificar paciente
               </button>
               <button type="button" className="btn btn--secondary" onClick={() => setFormOpen(false)} disabled={saving}>
@@ -460,28 +719,64 @@ export default function PatientsPage() {
           <div className="module-section-heading">
             <div>
               <h2 className="panel__title" id="patient-detail-heading">{patientName(selected)}</h2>
-              <p className="module-muted">Documento {patientDocument(selected)} · {selected.email || 'Sin correo'}</p>
+              <p className="module-muted">
+                Documento {patientDocument(selected)} · {selected.email || 'Sin correo'} · {selected.phone_number || 'Sin teléfono'}
+                {selected.is_minor && <span className="badge badge--warning patient-minor-badge">Menor de edad</span>}
+                {hasMedicalAlerts(selected) && <span className="badge badge--warning patient-minor-badge">Con alertas médicas</span>}
+              </p>
             </div>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelected(null)}>Cerrar detalle</button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelected(null)}>Cerrar ficha</button>
           </div>
           {detailLoading && <LoadingState message="Cargando detalle del paciente…" showSlowNotice={false} />}
           {editError && <Alert type="error">{editError}</Alert>}
           {!detailLoading && (
             <form onSubmit={handleUpdate} noValidate className="form form--spaced">
               <p className="module-muted">
-                Completa aquí los datos clínicos opcionales. El nombre, el documento y el correo pertenecen al usuario y no se editan desde este perfil.
+                La edición es parcial: solo se envían los campos que cambian. Los campos marcados con <RequiredMark /> son obligatorios.
               </p>
+
               <div className="module-form-grid">
+                <label className="field module-form-grid__wide">
+                  <span className="field__label">Nombre completo <RequiredMark /></span>
+                  <input className="input" maxLength={150} required {...editInput('full_name')} />
+                  {showEditError('full_name') && <p className="field__error">{showEditError('full_name')}</p>}
+                </label>
+                <label className="field">
+                  <span className="field__label">Tipo de documento <RequiredMark /></span>
+                  <select className="input" required {...editInput('document_type')}>
+                    {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                  {showEditError('document_type') && <p className="field__error">{showEditError('document_type')}</p>}
+                </label>
+                <label className="field">
+                  <span className="field__label">Número de documento <RequiredMark /></span>
+                  <input className="input" inputMode="numeric" maxLength={10} required {...editInput('document_number')} />
+                  {showEditError('document_number') && <p className="field__error">{showEditError('document_number')}</p>}
+                </label>
+                <label className="field">
+                  <span className="field__label">Correo electrónico <RequiredMark /></span>
+                  <input className="input" type="email" maxLength={255} required {...editInput('email')} />
+                  {showEditError('email') && <p className="field__error">{showEditError('email')}</p>}
+                </label>
+                <label className="field">
+                  <span className="field__label">Teléfono <RequiredMark /></span>
+                  <input className="input" type="tel" required {...editInput('phone_number')} />
+                  {showEditError('phone_number') && <p className="field__error">{showEditError('phone_number')}</p>}
+                </label>
+
                 <PatientClinicalFields
                   values={editValues}
-                  onChange={(field, value) => {
-                    setEditValues((current) => ({ ...current, [field]: value }));
-                    setEditFieldErrors((current) => ({ ...current, [field]: '' }));
-                  }}
+                  onChange={updateEdit}
                   disabled={!canEdit || editSaving}
-                  errors={editFieldErrors}
+                  errors={Object.fromEntries(
+                    Object.entries(editErrors).filter(([, message]) => message),
+                  )}
+                  requireBirthDate
+                  requireGender
+                  isMinor={editIsMinor}
                 />
               </div>
+
               {canEdit && (
                 <div className="form__actions">
                   <button type="submit" className="btn btn--primary" disabled={editSaving}>
@@ -532,22 +827,32 @@ export default function PatientsPage() {
                     <th scope="col">Contacto</th>
                     <th scope="col">Nacimiento</th>
                     <th scope="col">EPS</th>
+                    <th scope="col">Alertas</th>
                     <th scope="col">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {patients.map((patient) => (
                     <tr key={patient.id}>
-                      <td data-label="Paciente"><span className="cell-strong">{patientName(patient)}</span></td>
+                      <td data-label="Paciente">
+                        <span className="cell-strong">{patientName(patient)}</span>
+                        {patient.is_minor && <span className="badge badge--warning patient-minor-badge">Menor</span>}
+                      </td>
                       <td data-label="Documento">{patientDocument(patient)}</td>
                       <td data-label="Contacto">
                         <span className="cell-wrap">{patient.email || '—'}</span>
+                        <span className="cell-wrap module-muted">{patient.phone_number || '—'}</span>
                       </td>
                       <td data-label="Nacimiento">{patient.birth_date || '—'}</td>
                       <td data-label="EPS">{patient.eps || '—'}</td>
+                      <td data-label="Alertas">
+                        {hasMedicalAlerts(patient)
+                          ? <span className="badge badge--warning">Sí</span>
+                          : <span className="module-muted">—</span>}
+                      </td>
                       <td data-label="Acciones">
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => openPatient(patient)}>
-                          <Icon name="eye" size={15} /> {canEdit ? 'Ver / editar' : 'Ver detalle'}
+                          <Icon name="eye" size={15} /> {canEdit ? 'Ver / editar' : 'Ver ficha'}
                         </button>
                       </td>
                     </tr>

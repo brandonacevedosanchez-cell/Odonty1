@@ -1,8 +1,8 @@
 import { buildQuery, request, requestPaginated } from './apiClient.js';
-import { clampApiListLimit } from '../utils/pagination.js';
+import { clampApiListLimit, clampApiListOffset } from '../utils/pagination.js';
 
 /**
- * Capa de servicios de /clinical-history. Contrato: docs/openapi.json
+ * Capa de servicios de /clinical-history. Contrato API: 13-nov-2026.
  * (ClinicalEntryCreateIn, ClinicalEntryOut).
  *
  * @typedef {Object} ClinicalEntryOut
@@ -28,8 +28,12 @@ const clean = (payload) =>
   );
 
 /** GET /clinical-history?patient_id=... (permiso clinical_history.view). Devuelve { data, total }. */
-export const listClinicalHistory = ({ patientId, limit = 20, offset = 0 }) =>
-  requestPaginated(`/clinical-history${buildQuery({ patient_id: patientId, limit: clampApiListLimit(limit), offset })}`);
+export const listClinicalHistory = ({ patientId, limit = 50, offset = 0 }) =>
+  requestPaginated(`/clinical-history${buildQuery({
+    patient_id: patientId,
+    limit: clampApiListLimit(limit),
+    offset: clampApiListOffset(offset),
+  })}`);
 
 /** GET /clinical-history/{entry_id} (permiso clinical_history.view). */
 export const getClinicalEntry = (entryId) =>
@@ -53,6 +57,3 @@ export const createClinicalEntry = (payload) =>
       tratamiento: payload.tratamiento,
     }),
   });
-
-/** GET /clinical-history/me (Bearer). Historia del propio paciente, más reciente primero. */
-export const getMyClinicalHistory = () => request('/clinical-history/me');
