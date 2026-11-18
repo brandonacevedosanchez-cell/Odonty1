@@ -157,18 +157,23 @@ está disponible, la interfaz avisa y permite reintentar sin mostrar datos de ot
 
 | Método y ruta | Permiso | Uso | Parámetros / cuerpo |
 | --- | --- | --- | --- |
+| `GET /odontogram/catalogs` | `odontogram.view` | Catálogo de hallazgos y procedimientos dentales. | Devuelve `{ conditions: [{ code, name }], procedures: [{ code, name }] }`, ordenados por nombre. |
 | `GET /odontogram/{patient_id}` | `odontogram.view` | Estado actual por diente y superficie. | `patient_id` en la ruta. |
 | `GET /odontogram/{patient_id}/history` | `odontogram.view` | Historial paginado. | `tooth_fdi`, `limit`, `offset`. |
-| `POST /odontogram` | `odontogram.create` | Registrar hallazgo y/o procedimiento. | `appointment_id`, `tooth_fdi`; `surface` nullable; `condition_code`, `procedure_code`, `cups_code` (máx. 20), `notes`. |
+| `POST /odontogram` | `odontogram.create` | Registrar hallazgo y/o procedimiento. | `appointment_id`, `tooth_fdi`; `surface` opcional; `condition_code`, `procedure_code`, `cups_code` (máx. 6), `notes`. |
 
-Debe enviarse al menos `condition_code` o `procedure_code`. `surface` se envía como `null` para el diente
-completo. El campo `procedure_code` usa el buscador CUPS descrito abajo.
+`GET /odontogram/catalogs` requiere `odontogram.view` y devuelve los códigos internos de hallazgos y
+procedimientos para poblar los select. El frontend conserva listas de respaldo del contrato si la ruta no
+está disponible.
 
-`cups_code` es obligatorio cuando se envía `procedure_code` y debe ser un código CUPS vigente (cualquiera,
-también fuera de los marcados como odontológicos). Sin procedimiento no se muestra ni se envía, y al cambiar
-o quitar el procedimiento se limpia. `OdontogramEntryOut` incluye `cups_code` y `cups_name`, que pueden venir
-en `null` en registros anteriores o sin procedimiento. Los errores 400 (`cups_code invalido o no vigente`) y
-422 (`cups_code es obligatorio…`, `cups_code solo aplica…`) se muestran junto al campo CUPS.
+Debe enviarse al menos `condition_code` o `procedure_code`. `procedure_code` es el código interno elegido
+del catálogo de procedimientos (por ejemplo, `resina`); nunca contiene un código CUPS. Si hay
+`procedure_code`, `cups_code` es obligatorio y debe ser un código CUPS odontológico vigente de máximo seis
+caracteres, elegido en el buscador con `dental_only=true`. Sin procedimiento no se envía `cups_code`; al
+cambiar o quitar el procedimiento se limpia la selección CUPS. Para el diente completo se omite `surface`.
+`OdontogramEntryOut` incluye `cups_code` y `cups_name`, que pueden venir en `null` en registros anteriores o
+sin procedimiento. Los errores 400 y 422 del par procedimiento/CUPS se muestran junto al campo que
+corresponde.
 
 ### Notificaciones (`/notifications`)
 
@@ -190,8 +195,8 @@ hasta 6, con al menos un dígito) se buscan códigos que empiezan por él; si so
 cuyo nombre contiene todas las palabras. No distingue tildes ni mayúsculas.
 
 `src/services/catalogsService.js` recorta `q` a 100 caracteres, no llama al backend con menos de 2 y limita
-`limit` a 50. `src/modules/odontograma/CupsSearch.jsx` aplica debounce de 350 ms, busca solo códigos
-odontológicos por defecto y ofrece la casilla «Buscar en todo el catálogo» (`dental_only=false`).
+`limit` a 50. `src/modules/odontograma/CupsSearch.jsx` aplica debounce de 350 ms; en el formulario del odontograma busca
+solo códigos odontológicos (`dental_only=true`).
 `CupsCodeLabel` consulta el nombre oficial de códigos ya guardados cuando la respuesta no lo trae.
 
 ## Endpoints retirados

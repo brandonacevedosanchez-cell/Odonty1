@@ -36,7 +36,7 @@ const STATE_CARD = {
   items: [
     'Facturación es un marcador: no hay endpoint financiero ni llamada API.',
     'Roles y permisos es una matriz estática del frontend; no consulta endpoint.',
-    'El odontograma busca CUPS en GET /catalogs/cups con dental_only=false.',
+    'El odontograma busca CUPS en GET /catalogs/cups con dental_only=true.',
   ],
 };
 
@@ -684,18 +684,20 @@ function odontogramFlow() {
     node('pieza', 'ui', 2, 'frontend', 'Selección de pieza FDI', 'superficies o diente completo'),
     node('cups', 'ui', 3, 'frontend', 'Búsqueda CUPS', 'código o palabras'),
     node('guardar', 'ui', 4, 'frontend', 'Registrar hallazgo', 'odontogram.create'),
+    node('api_catalogos', 'api', 0, 'backend', 'GET /odontogram/catalogs', 'odontogram.view'),
     node('api_get', 'api', 1, 'backend', 'GET /patients'),
     node('api_actual', 'api', 2, 'backend', 'GET /odontogram/{patient_id}'),
     node('api_cups', 'api', 3, 'backend', 'GET /catalogs/cups'),
     node('api_post', 'api', 4, 'backend', 'POST /odontogram'),
   ];
   w.edges = [
+    drop('entrada', 'api_catalogos', { label: 'carga del catálogo' }),
     edge('entrada', 'paciente'),
     drop('paciente', 'api_get'),
     edge('paciente', 'pieza'),
     drop('pieza', 'api_actual'),
     edge('pieza', 'cups'),
-    drop('cups', 'api_cups', { label: 'dental_only=false' }),
+    drop('cups', 'api_cups', { label: 'dental_only=true' }),
     edge('cups', 'guardar'),
     drop('guardar', 'api_post'),
   ];
@@ -703,9 +705,17 @@ function odontogramFlow() {
   w.cards = [
     {
       dot: 'cyan',
+      title: 'Catálogo odontológico',
+      items: [
+        'GET /odontogram/catalogs (odontogram.view) carga hallazgos y procedimientos al abrir el módulo.',
+        'procedure_code usa el código interno; el CUPS seleccionado se envía aparte en cups_code.',
+      ],
+    },
+    {
+      dot: 'cyan',
       title: 'Búsqueda CUPS',
       items: [
-        'GET /catalogs/cups?q=…&dental_only=false&limit=20; q exige 2–100 caracteres.',
+        'GET /catalogs/cups?q=…&dental_only=true&limit=20; q exige 2–100 caracteres.',
         'El detalle del código usa GET /catalogs/cups/{code}.',
       ],
     },
@@ -715,7 +725,7 @@ function odontogramFlow() {
       items: [
         'Estado actual: GET /odontogram/{patient_id}.',
         'Historial: GET /odontogram/{patient_id}/history?tooth_fdi=…',
-        'cups_code solo se envía cuando hay procedimiento.',
+        'procedure_code y cups_code forman un par; cups_code solo se envía con procedimiento.',
       ],
     },
   ];

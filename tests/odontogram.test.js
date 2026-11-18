@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import { DENTITION, getToothSurfaces, getToothSurfaceType } from '../src/modules/odontograma/toothData.js';
 import {
   EMPTY_ODONTOGRAM_FORM,
+  FALLBACK_ODONTOGRAM_CATALOGS,
   buildOdontogramFields,
+  loadOdontogramCatalogs,
   validateOdontogramCups,
+  validateOdontogramSelection,
   withProcedureCode,
 } from '../src/modules/odontograma/odontogramForm.js';
 import { toggleToothSurface, toggleWholeTooth, toToothSelectionPayload } from '../src/modules/odontograma/toothSelection.js';
@@ -88,60 +91,90 @@ test('ignora superficies fuera del enum ToothSurface', () => {
 test('cups_code es obligatorio solo cuando hay procedimiento', () => {
   assert.equal(validateOdontogramCups({ ...EMPTY_ODONTOGRAM_FORM, condition_code: 'C1' }), '');
   assert.match(
-    validateOdontogramCups({ ...EMPTY_ODONTOGRAM_FORM, procedure_code: '232102' }),
+    validateOdontogramCups({ ...EMPTY_ODONTOGRAM_FORM, procedure_code: 'resina' }),
     /CUPS/,
   );
   assert.equal(
-    validateOdontogramCups({ ...EMPTY_ODONTOGRAM_FORM, procedure_code: '232102', cups_code: '232102' }),
+    validateOdontogramCups({ ...EMPTY_ODONTOGRAM_FORM, procedure_code: 'resina', cups_code: '234105' }),
     '',
   );
+  assert.match(
+    validateOdontogramCups({ ...EMPTY_ODONTOGRAM_FORM, procedure_code: 'resina', cups_code: '1234567' }),
+    /máximo 6/,
+  );
+});
+
+test('exige un hallazgo o un procedimiento', () => {
+  assert.match(validateOdontogramSelection(EMPTY_ODONTOGRAM_FORM), /hallazgo o un procedimiento/);
+  assert.equal(validateOdontogramSelection({ ...EMPTY_ODONTOGRAM_FORM, condition_code: 'caries' }), '');
+  assert.equal(validateOdontogramSelection({ ...EMPTY_ODONTOGRAM_FORM, procedure_code: 'resina' }), '');
+});
+
+test('usa los catálogos de respaldo cuando falla GET /odontogram/catalogs', async () => {
+  const catalogs = await loadOdontogramCatalogs(async () => {
+    throw new Error('Ruta no disponible');
+  });
+
+  assert.deepEqual(
+    catalogs.conditions.map(({ code }) => code).sort(),
+    FALLBACK_ODONTOGRAM_CATALOGS.conditions.map(({ code }) => code).sort(),
+  );
+  assert.deepEqual(
+    catalogs.procedures.map(({ code }) => code).sort(),
+    FALLBACK_ODONTOGRAM_CATALOGS.procedures.map(({ code }) => code).sort(),
+  );
+  assert.ok(catalogs.procedures.some(({ code, name }) => code === 'resina' && name === 'Resina'));
 });
 
 test('cambiar o quitar el procedimiento limpia el cups_code', () => {
-  const base = { ...EMPTY_ODONTOGRAM_FORM, procedure_code: '232102', cups_code: '232102' };
+  const base = { ...EMPTY_ODONTOGRAM_FORM, procedure_code: 'resina', cups_code: '234105' };
 
-  assert.deepEqual(withProcedureCode(base, '232102'), base);
-  assert.deepEqual(withProcedureCode(base, '232103'), { ...base, procedure_code: '232103', cups_code: '' });
+  assert.deepEqual(withProcedureCode(base, 'resina'), base);
+  assert.deepEqual(withProcedureCode(base, 'corona'), { ...base, procedure_code: 'corona', cups_code: '' });
   assert.deepEqual(withProcedureCode(base, ''), { ...base, procedure_code: '', cups_code: '' });
 });
 
-test('el payload envía cups_code solo junto al procedimiento', () => {
-  assert.deepEqual(
-    buildOdontogramFields({
-      appointment_id: '31',
-      condition_code: ' C1 ',
-      procedure_code: ' 232102 ',
-      cups_code: ' 232102 ',
-      notes: 'Nota',
-    }),
-    {
-      appointment_id: 31,
-      condition_code: 'C1',
-      procedure_code: '232102',
-      cups_code: '232102',
-      notes: 'Nota',
-    },
-  );
+test('envía el código interno en procedure_code y el buscador CUPS en cups_code', () => {
+  const fields = buildOdontogramFields({
+    appointment_id: '31',
+    condition_code: ' caries ',
+    procedure_code: ' resina ',
+    cups_code: ' 234105 ',
+    notes: ' Nota ',
+  });
 
-  assert.deepEqual(
-    buildOdontogramFields({
-      appointment_id: '31',
-      condition_code: 'C1',
-      procedure_code: '',
-      cups_code: '232102',
-      notes: '',
-    }),
-    {
-      appointment_id: 31,
-      condition_code: 'C1',
-      procedure_code: undefined,
-      cups_code: undefined,
-      notes: '',
-    },
-  );
+  assert.deepEqual(fields, {
+    appointment_id: 31,
+    condition_code: 'caries',
+    procedure_code: 'resina',
+    cups_code: '234105',
+    notes: ' Nota ',
+  });
+  assert.notEqual(fields.procedure_code, '234105');
+});
 
-  assert.equal(
-    buildOdontogramFields({ ...EMPTY_ODONTOGRAM_FORM, appointment_id: '31', procedure_code: '232102' }).cups_code,
-    undefined,
-  );
+test('omite cups_code sin procedimiento y omite los campos vacíos', () => {
+  const fields = buildOdontogramFields({
+    appointment_id: '31',
+    condition_code: 'caries',
+    procedure_code: ' ',
+    cups_code: '234105',
+    notes: '  ',
+  });
+
+  assert.deepEqual(fields, { appointment_id: 31, condition_code: 'caries' });
+  assert.equal('cups_code' in fields, false);
+  assert.equal('procedure_code' in fields, false);
+});
+
+test('el CUPS 234105 solo puede enviarse como cups_code', () => {
+  const fields = buildOdontogramFields({
+    appointment_id: '31',
+    procedure_code: 'resina',
+    cups_code: '234105',
+  });
+
+  assert.equal(fields.procedure_code, 'resina');
+  assert.equal(fields.cups_code, '234105');
+  assert.notEqual(fields.procedure_code, '234105');
 });
