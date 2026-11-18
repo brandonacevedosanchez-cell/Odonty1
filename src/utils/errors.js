@@ -56,8 +56,21 @@ function parseBusinessFieldErrors(status, detail) {
   const message = stripValueError(detail);
 
   if (status === 400) {
+    if (/^cups_code\s+inv[aá]lido o no vigente/i.test(message)) {
+      return { cups_code: 'El código CUPS no es válido o no está vigente. Selecciónalo del catálogo.' };
+    }
     const match = message.match(/^El campo\s+([a-z_]+)\s+no puede quedar vac[ií]o\.?$/i);
     if (match) return { [match[1]]: message };
+  }
+
+  if (status === 422 && /^cups_code\b/i.test(message)) {
+    if (/solo aplica/i.test(message)) {
+      return { cups_code: 'El código CUPS solo aplica cuando registras un procedimiento.' };
+    }
+    if (/obligatorio/i.test(message)) {
+      return { cups_code: 'Selecciona el código CUPS vigente del procedimiento.' };
+    }
+    return { cups_code: message };
   }
 
   if (status === 409 && /^Ya existe un paciente con ese documento en esta cl[ií]nica\b/i.test(message)) {
@@ -80,7 +93,7 @@ export class ApiError extends Error {
     this.status = status;
     this.detail = detail;
     this.code = code ?? (detail && typeof detail === 'object' && !Array.isArray(detail) ? detail.code ?? null : null);
-    this.fieldErrors = status === 422
+    this.fieldErrors = status === 422 && Array.isArray(detail)
       ? parseValidationErrors(detail).fieldErrors
       : parseBusinessFieldErrors(status, detail);
   }

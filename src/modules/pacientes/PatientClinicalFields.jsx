@@ -7,7 +7,7 @@ import {
   PATIENT_DOCUMENT_TYPES,
   PATIENT_GENDERS,
 } from '../../constants/apiValues.js';
-import { EPS_SELECT_OPTIONS } from '../../constants/eps.js';
+import { EPS_OPTIONS, EPS_SELECT_OPTIONS } from '../../constants/eps.js';
 
 export const DOCUMENT_TYPES = PATIENT_DOCUMENT_TYPES;
 export const BLOOD_TYPES = PATIENT_BLOOD_TYPES;
@@ -64,6 +64,9 @@ export function EpsField({ value, onChange, disabled = false, error = '', requir
         disabled={disabled}
         required={required}
       />
+      <span className="field__hint">
+        {EPS_OPTIONS.length} EPS disponibles, más Particular / Sin EPS.
+      </span>
       <FieldError error={error} />
     </>
   );

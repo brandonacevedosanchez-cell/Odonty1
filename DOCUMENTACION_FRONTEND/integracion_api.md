@@ -159,10 +159,16 @@ está disponible, la interfaz avisa y permite reintentar sin mostrar datos de ot
 | --- | --- | --- | --- |
 | `GET /odontogram/{patient_id}` | `odontogram.view` | Estado actual por diente y superficie. | `patient_id` en la ruta. |
 | `GET /odontogram/{patient_id}/history` | `odontogram.view` | Historial paginado. | `tooth_fdi`, `limit`, `offset`. |
-| `POST /odontogram` | `odontogram.create` | Registrar hallazgo y/o procedimiento. | `appointment_id`, `tooth_fdi`; `surface` nullable; `condition_code`, `procedure_code`, `notes`. |
+| `POST /odontogram` | `odontogram.create` | Registrar hallazgo y/o procedimiento. | `appointment_id`, `tooth_fdi`; `surface` nullable; `condition_code`, `procedure_code`, `cups_code` (máx. 20), `notes`. |
 
 Debe enviarse al menos `condition_code` o `procedure_code`. `surface` se envía como `null` para el diente
 completo. El campo `procedure_code` usa el buscador CUPS descrito abajo.
+
+`cups_code` es obligatorio cuando se envía `procedure_code` y debe ser un código CUPS vigente (cualquiera,
+también fuera de los marcados como odontológicos). Sin procedimiento no se muestra ni se envía, y al cambiar
+o quitar el procedimiento se limpia. `OdontogramEntryOut` incluye `cups_code` y `cups_name`, que pueden venir
+en `null` en registros anteriores o sin procedimiento. Los errores 400 (`cups_code invalido o no vigente`) y
+422 (`cups_code es obligatorio…`, `cups_code solo aplica…`) se muestran junto al campo CUPS.
 
 ### Notificaciones (`/notifications`)
 
@@ -184,8 +190,9 @@ hasta 6, con al menos un dígito) se buscan códigos que empiezan por él; si so
 cuyo nombre contiene todas las palabras. No distingue tildes ni mayúsculas.
 
 `src/services/catalogsService.js` recorta `q` a 100 caracteres, no llama al backend con menos de 2 y limita
-`limit` a 50. `src/modules/odontograma/CupsSearch.jsx` aplica debounce de 350 ms y `CupsCodeLabel` consulta el
-nombre oficial de códigos ya guardados cuando la respuesta no lo trae.
+`limit` a 50. `src/modules/odontograma/CupsSearch.jsx` aplica debounce de 350 ms, busca solo códigos
+odontológicos por defecto y ofrece la casilla «Buscar en todo el catálogo» (`dental_only=false`).
+`CupsCodeLabel` consulta el nombre oficial de códigos ya guardados cuando la respuesta no lo trae.
 
 ## Endpoints retirados
 
