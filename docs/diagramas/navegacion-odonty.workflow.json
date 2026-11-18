@@ -1,0 +1,161 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Navegación general de Odonty",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/navegacion-odonty.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "publico",
+      "label": "Acceso público"
+    },
+    {
+      "id": "soporte",
+      "label": "Soporte de acceso"
+    },
+    {
+      "id": "sesion",
+      "label": "Sesión autenticada"
+    },
+    {
+      "id": "secciones",
+      "label": "Secciones del área autenticada"
+    }
+  ],
+  "phases": [],
+  "groups": [
+    {
+      "id": "hub",
+      "label": "Se accede desde Inicio según permisos",
+      "lane": "secciones",
+      "fromCol": 3,
+      "toCol": 5
+    }
+  ],
+  "nodes": [
+    {
+      "id": "registro",
+      "lane": "publico",
+      "col": 0,
+      "type": "frontend",
+      "label": "Registro de clínica",
+      "sublabel": "/registro-clinica · sin guard"
+    },
+    {
+      "id": "login",
+      "lane": "publico",
+      "col": 1,
+      "type": "frontend",
+      "label": "Inicio de sesión",
+      "sublabel": "/login · GuestRoute"
+    },
+    {
+      "id": "mfa",
+      "lane": "publico",
+      "col": 2,
+      "type": "security",
+      "label": "Verificación MFA",
+      "sublabel": "/verificar-mfa"
+    },
+    {
+      "id": "recuperar",
+      "lane": "soporte",
+      "col": 1,
+      "type": "frontend",
+      "label": "Recuperación",
+      "sublabel": "/recuperar"
+    },
+    {
+      "id": "inicio",
+      "lane": "sesion",
+      "col": 2,
+      "type": "frontend",
+      "label": "Inicio",
+      "sublabel": "/ · AppLayout"
+    },
+    {
+      "id": "admin_n",
+      "lane": "secciones",
+      "col": 3,
+      "type": "frontend",
+      "label": "Administración",
+      "sublabel": "Usuarios · roles · auditoría"
+    },
+    {
+      "id": "clinicos_n",
+      "lane": "secciones",
+      "col": 4,
+      "type": "frontend",
+      "label": "Módulos clínicos",
+      "sublabel": "Seis módulos por permiso"
+    },
+    {
+      "id": "cuenta_n",
+      "lane": "secciones",
+      "col": 5,
+      "type": "frontend",
+      "label": "Mi cuenta",
+      "sublabel": "MFA y contraseña"
+    }
+  ],
+  "edges": [
+    {
+      "from": "registro",
+      "to": "login",
+      "label": "solicitud enviada"
+    },
+    {
+      "from": "login",
+      "to": "mfa",
+      "label": "MFA activo"
+    },
+    {
+      "from": "login",
+      "to": "recuperar",
+      "label": "¿olvidó?",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "mfa",
+      "to": "inicio",
+      "label": "sesión lista"
+    },
+    {
+      "from": "inicio",
+      "to": "admin_n",
+      "label": "accesos rápidos"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Regla de seguridad",
+      "items": [
+        "Toda ruta protegida sin permiso muestra Acceso denegado (ForbiddenPage); la URL no cambia.",
+        "Sin sesión válida se redirige a /login conservando la ruta solicitada.",
+        "Una ruta desconocida dentro de AppLayout muestra 404 con volver al inicio."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Estado real de la integración",
+      "items": [
+        "Facturación es un marcador: no hay endpoint financiero ni llamada API.",
+        "Roles y permisos es una matriz estática del frontend; no consulta endpoint.",
+        "El odontograma busca CUPS en GET /catalogs/cups con dental_only=false."
+      ]
+    }
+  ],
+  "mainPath": [
+    "registro",
+    "login",
+    "mfa",
+    "inicio"
+  ]
+}

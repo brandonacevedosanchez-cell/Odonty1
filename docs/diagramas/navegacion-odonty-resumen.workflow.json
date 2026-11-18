@@ -1,0 +1,133 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Odonty · navegación por grupos",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/navegacion-odonty-resumen.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "publicas",
+      "label": "Públicas"
+    },
+    {
+      "id": "sesion",
+      "label": "Sesión"
+    },
+    {
+      "id": "admin",
+      "label": "Administración"
+    },
+    {
+      "id": "clinicos",
+      "label": "Módulos clínicos"
+    },
+    {
+      "id": "seguridad",
+      "label": "Redirecciones de seguridad",
+      "variant": "exception"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "publicas_n",
+      "lane": "publicas",
+      "col": 0,
+      "type": "frontend",
+      "label": "Públicas",
+      "sublabel": "Sin sesión · login y registro"
+    },
+    {
+      "id": "sesion_n",
+      "lane": "sesion",
+      "col": 1,
+      "type": "frontend",
+      "label": "Sesión",
+      "sublabel": "Todos los roles"
+    },
+    {
+      "id": "admin_n",
+      "lane": "admin",
+      "col": 2,
+      "type": "frontend",
+      "label": "Administración",
+      "sublabel": "Super admin · Admin"
+    },
+    {
+      "id": "clinicos_n",
+      "lane": "clinicos",
+      "col": 3,
+      "type": "frontend",
+      "label": "Módulos clínicos",
+      "sublabel": "Según permiso del rol"
+    },
+    {
+      "id": "login",
+      "lane": "seguridad",
+      "col": 1,
+      "type": "security",
+      "label": "Inicio de sesión",
+      "sublabel": "sin sesión"
+    },
+    {
+      "id": "denegado",
+      "lane": "seguridad",
+      "col": 2,
+      "type": "security",
+      "label": "Acceso denegado",
+      "sublabel": "sin permiso"
+    },
+    {
+      "id": "noexiste",
+      "lane": "seguridad",
+      "col": 3,
+      "type": "security",
+      "label": "404",
+      "sublabel": "ruta desconocida"
+    }
+  ],
+  "edges": [
+    {
+      "from": "publicas_n",
+      "to": "sesion_n",
+      "label": "credenciales válidas"
+    },
+    {
+      "from": "sesion_n",
+      "to": "admin_n",
+      "label": "rol administrador"
+    },
+    {
+      "from": "sesion_n",
+      "to": "clinicos_n",
+      "label": "permiso del módulo"
+    },
+    {
+      "from": "sesion_n",
+      "to": "login",
+      "label": "sesión expirada"
+    },
+    {
+      "from": "admin_n",
+      "to": "denegado",
+      "label": "sin permiso"
+    },
+    {
+      "from": "clinicos_n",
+      "to": "noexiste",
+      "label": "ruta desconocida"
+    }
+  ],
+  "cards": [],
+  "mainPath": [
+    "publicas_n",
+    "sesion_n",
+    "clinicos_n"
+  ]
+}

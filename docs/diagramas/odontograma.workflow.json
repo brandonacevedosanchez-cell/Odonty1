@@ -1,0 +1,163 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Módulo: odontograma",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/odontograma.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de odontograma"
+    },
+    {
+      "id": "api",
+      "label": "API clínica y catálogos"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "entrada",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Odontograma",
+      "sublabel": "/odontograma · odontogram.view"
+    },
+    {
+      "id": "paciente",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Selección de paciente",
+      "sublabel": "búsqueda y chips"
+    },
+    {
+      "id": "pieza",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Selección de pieza FDI",
+      "sublabel": "superficies o diente completo"
+    },
+    {
+      "id": "cups",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Búsqueda CUPS",
+      "sublabel": "código o palabras"
+    },
+    {
+      "id": "guardar",
+      "lane": "ui",
+      "col": 4,
+      "type": "frontend",
+      "label": "Registrar hallazgo",
+      "sublabel": "odontogram.create"
+    },
+    {
+      "id": "api_get",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "GET /patients"
+    },
+    {
+      "id": "api_actual",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "GET /odontogram/{patient_id}"
+    },
+    {
+      "id": "api_cups",
+      "lane": "api",
+      "col": 3,
+      "type": "backend",
+      "label": "GET /catalogs/cups"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 4,
+      "type": "backend",
+      "label": "POST /odontogram"
+    }
+  ],
+  "edges": [
+    {
+      "from": "entrada",
+      "to": "paciente"
+    },
+    {
+      "from": "paciente",
+      "to": "api_get",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "paciente",
+      "to": "pieza"
+    },
+    {
+      "from": "pieza",
+      "to": "api_actual",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "pieza",
+      "to": "cups"
+    },
+    {
+      "from": "cups",
+      "to": "api_cups",
+      "label": "dental_only=false",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "cups",
+      "to": "guardar"
+    },
+    {
+      "from": "guardar",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Búsqueda CUPS",
+      "items": [
+        "GET /catalogs/cups?q=…&dental_only=false&limit=20; q exige 2–100 caracteres.",
+        "El detalle del código usa GET /catalogs/cups/{code}."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Hallazgos e historial",
+      "items": [
+        "Estado actual: GET /odontogram/{patient_id}.",
+        "Historial: GET /odontogram/{patient_id}/history?tooth_fdi=…",
+        "cups_code solo se envía cuando hay procedimiento."
+      ]
+    }
+  ],
+  "mainPath": [
+    "entrada",
+    "paciente",
+    "pieza",
+    "cups",
+    "guardar"
+  ]
+}

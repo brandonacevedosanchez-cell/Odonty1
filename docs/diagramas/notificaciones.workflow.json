@@ -1,0 +1,148 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Módulo: notificaciones",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/notificaciones.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de notificaciones"
+    },
+    {
+      "id": "api",
+      "label": "API de notificaciones"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "entrada",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Notificaciones",
+      "sublabel": "/notificaciones · notifications.view"
+    },
+    {
+      "id": "filtro",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Todas / sin leer",
+      "sublabel": "unread_only"
+    },
+    {
+      "id": "lista",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Listado y detalle",
+      "sublabel": "panel lateral"
+    },
+    {
+      "id": "marcar",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Marcar como leída",
+      "sublabel": "acción por notificación"
+    },
+    {
+      "id": "crear",
+      "lane": "ui",
+      "col": 4,
+      "type": "frontend",
+      "label": "Nueva notificación",
+      "sublabel": "notifications.create"
+    },
+    {
+      "id": "api_get",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "GET /notifications"
+    },
+    {
+      "id": "api_patch",
+      "lane": "api",
+      "col": 3,
+      "type": "backend",
+      "label": "PATCH /notifications/{id}/read"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 4,
+      "type": "backend",
+      "label": "POST /notifications"
+    }
+  ],
+  "edges": [
+    {
+      "from": "entrada",
+      "to": "filtro"
+    },
+    {
+      "from": "filtro",
+      "to": "lista"
+    },
+    {
+      "from": "lista",
+      "to": "api_get",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "lista",
+      "to": "marcar"
+    },
+    {
+      "from": "marcar",
+      "to": "api_patch",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "marcar",
+      "to": "crear"
+    },
+    {
+      "from": "crear",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Datos que consume",
+      "items": [
+        "Listado: GET /notifications con unread_only, limit y offset.",
+        "Destinatario: GET /users para elegir el usuario."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Lectura",
+      "items": [
+        "Marcar leída: PATCH /notifications/{id}/read y actualiza el detalle.",
+        "El indicador de no leídas se calcula con la página cargada."
+      ]
+    }
+  ],
+  "mainPath": [
+    "entrada",
+    "filtro",
+    "lista",
+    "marcar",
+    "crear"
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Guards y excepciones de navegación",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/guards-y-excepciones.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "guard",
+      "label": "Guard de ruta"
+    },
+    {
+      "id": "resultados",
+      "label": "Resultados y excepciones",
+      "variant": "exception"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "ruta",
+      "lane": "guard",
+      "col": 0,
+      "type": "security",
+      "label": "Ruta protegida",
+      "sublabel": "Cualquier ruta de AppLayout"
+    },
+    {
+      "id": "sesion",
+      "lane": "guard",
+      "col": 1,
+      "type": "security",
+      "label": "¿Sesión válida?",
+      "sublabel": "ProtectedRoute · refresh token"
+    },
+    {
+      "id": "permiso",
+      "lane": "guard",
+      "col": 2,
+      "type": "security",
+      "label": "¿Rol con permiso?",
+      "sublabel": "RequirePermission"
+    },
+    {
+      "id": "pantalla",
+      "lane": "guard",
+      "col": 3,
+      "type": "frontend",
+      "label": "Pantalla autorizada",
+      "sublabel": "Outlet de React Router"
+    },
+    {
+      "id": "logout",
+      "lane": "resultados",
+      "col": 0,
+      "type": "frontend",
+      "label": "Cierre de sesión",
+      "sublabel": "Topbar · POST /auth/logout"
+    },
+    {
+      "id": "login",
+      "lane": "resultados",
+      "col": 1,
+      "type": "frontend",
+      "label": "Inicio de sesión",
+      "sublabel": "/login · vuelve a la ruta"
+    },
+    {
+      "id": "denegado",
+      "lane": "resultados",
+      "col": 2,
+      "type": "security",
+      "label": "Acceso denegado",
+      "sublabel": "ForbiddenPage · volver a inicio"
+    },
+    {
+      "id": "noexiste",
+      "lane": "resultados",
+      "col": 4,
+      "type": "frontend",
+      "label": "404",
+      "sublabel": "NotFoundPage · volver a inicio"
+    }
+  ],
+  "edges": [
+    {
+      "from": "ruta",
+      "to": "sesion"
+    },
+    {
+      "from": "sesion",
+      "to": "permiso",
+      "label": "token válido"
+    },
+    {
+      "from": "sesion",
+      "to": "login",
+      "label": "sin sesión / expirada",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "permiso",
+      "to": "pantalla",
+      "label": "autorizado"
+    },
+    {
+      "from": "permiso",
+      "to": "denegado",
+      "label": "sin permiso",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "logout",
+      "to": "login",
+      "label": "cierra sesión"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Invitados y cambio forzado",
+      "items": [
+        "Si user.must_change_password, ProtectedRoute redirige a /cambiar-contrasena.",
+        "Al completar el cambio, /cambiar-contrasena redirige a /.",
+        "GuestRoute: con sesión activa, /login, /verificar-mfa y /recuperar van a la ruta previa o /."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Sesión y errores de red",
+      "items": [
+        "status = loading: se muestra «Restaurando tu sesión…».",
+        "status = error (red o 5xx): se muestra reintento y NO se cierra la sesión.",
+        "Un 401 global limpia tokens y devuelve al login con aviso.",
+        "En vista previa el cierre de sesión está desactivado."
+      ]
+    }
+  ],
+  "mainPath": [
+    "ruta",
+    "sesion",
+    "permiso",
+    "pantalla"
+  ]
+}

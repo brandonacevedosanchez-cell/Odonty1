@@ -1,0 +1,149 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Administración: usuarios",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/administracion-usuarios.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de usuarios"
+    },
+    {
+      "id": "api",
+      "label": "API de usuarios"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "lista",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Listado de usuarios",
+      "sublabel": "/usuarios · users.view"
+    },
+    {
+      "id": "filtros",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Filtros y búsqueda",
+      "sublabel": "texto · rol · estado"
+    },
+    {
+      "id": "crear",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Crear trabajador",
+      "sublabel": "/usuarios/nuevo · users.create"
+    },
+    {
+      "id": "editar",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Editar · rol · estado",
+      "sublabel": "diálogos de la tabla"
+    },
+    {
+      "id": "fin",
+      "lane": "ui",
+      "col": 4,
+      "type": "frontend",
+      "label": "Listado recargado",
+      "sublabel": "cambio aplicado"
+    },
+    {
+      "id": "api_get",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "GET /users"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "POST /users"
+    },
+    {
+      "id": "api_patch",
+      "lane": "api",
+      "col": 3,
+      "type": "backend",
+      "label": "PATCH /users/{id}"
+    }
+  ],
+  "edges": [
+    {
+      "from": "lista",
+      "to": "filtros"
+    },
+    {
+      "from": "filtros",
+      "to": "api_get",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "filtros",
+      "to": "crear"
+    },
+    {
+      "from": "crear",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "crear",
+      "to": "editar"
+    },
+    {
+      "from": "editar",
+      "to": "api_patch",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "editar",
+      "to": "fin"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Reglas de rol",
+      "items": [
+        "Nadie puede cambiar su propio rol.",
+        "El rol super_admin no se asigna ni se modifica desde aquí.",
+        "Un administrador no puede modificar a otro administrador."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Rutas de escritura",
+      "items": [
+        "Rol: PATCH /users/{id}/role. Estado: PATCH /users/{id}/active.",
+        "Los cambios quedan registrados en /auditoria."
+      ]
+    }
+  ],
+  "mainPath": [
+    "lista",
+    "filtros",
+    "crear",
+    "editar",
+    "fin"
+  ]
+}

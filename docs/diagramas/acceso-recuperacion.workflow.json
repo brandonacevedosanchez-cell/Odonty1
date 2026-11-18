@@ -1,0 +1,116 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Acceso: recuperación de contraseña",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/acceso-recuperacion.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "publico",
+      "label": "Pantalla pública"
+    },
+    {
+      "id": "api",
+      "label": "API de autenticación"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "pedir",
+      "lane": "publico",
+      "col": 0,
+      "type": "frontend",
+      "label": "Solicitar código",
+      "sublabel": "/recuperar · correo"
+    },
+    {
+      "id": "codigo",
+      "lane": "publico",
+      "col": 1,
+      "type": "frontend",
+      "label": "Código y nueva contraseña",
+      "sublabel": "6 dígitos · vence en 10 min"
+    },
+    {
+      "id": "exito",
+      "lane": "publico",
+      "col": 2,
+      "type": "frontend",
+      "label": "Contraseña actualizada",
+      "sublabel": "volver a iniciar sesión"
+    },
+    {
+      "id": "login",
+      "lane": "publico",
+      "col": 3,
+      "type": "frontend",
+      "label": "Inicio de sesión",
+      "sublabel": "/login"
+    },
+    {
+      "id": "api_forgot",
+      "lane": "api",
+      "col": 0,
+      "type": "backend",
+      "label": "POST /auth/forgot-password"
+    },
+    {
+      "id": "api_reset",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "POST /auth/reset-password"
+    }
+  ],
+  "edges": [
+    {
+      "from": "pedir",
+      "to": "api_forgot",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "pedir",
+      "to": "codigo",
+      "label": "código enviado"
+    },
+    {
+      "from": "codigo",
+      "to": "api_reset",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "codigo",
+      "to": "exito",
+      "label": "código válido"
+    },
+    {
+      "from": "exito",
+      "to": "login"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Privacidad",
+      "items": [
+        "Si el correo no está registrado, la respuesta es la misma: no revela cuentas.",
+        "Los errores 422 se muestran por campo."
+      ]
+    }
+  ],
+  "mainPath": [
+    "pedir",
+    "codigo",
+    "exito",
+    "login"
+  ]
+}

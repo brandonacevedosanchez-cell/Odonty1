@@ -1,0 +1,162 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Módulo: pacientes",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/pacientes.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de pacientes"
+    },
+    {
+      "id": "api",
+      "label": "API de pacientes"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "entrada",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Módulo Pacientes",
+      "sublabel": "/pacientes · patients.view"
+    },
+    {
+      "id": "buscar",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Búsqueda y paginación",
+      "sublabel": "texto libre"
+    },
+    {
+      "id": "alta",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Registrar paciente",
+      "sublabel": "patients.create · documento único"
+    },
+    {
+      "id": "ficha",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Ficha y alertas",
+      "sublabel": "patients.edit · alertas médicas"
+    },
+    {
+      "id": "guardar",
+      "lane": "ui",
+      "col": 4,
+      "type": "frontend",
+      "label": "Guardar cambios",
+      "sublabel": "solo campos modificados"
+    },
+    {
+      "id": "api_get",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "GET /patients"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "POST /patients"
+    },
+    {
+      "id": "api_detail",
+      "lane": "api",
+      "col": 3,
+      "type": "backend",
+      "label": "GET /patients/{id}"
+    },
+    {
+      "id": "api_patch",
+      "lane": "api",
+      "col": 4,
+      "type": "backend",
+      "label": "PATCH /patients/{id}"
+    }
+  ],
+  "edges": [
+    {
+      "from": "entrada",
+      "to": "buscar"
+    },
+    {
+      "from": "buscar",
+      "to": "api_get",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "buscar",
+      "to": "alta"
+    },
+    {
+      "from": "alta",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "alta",
+      "to": "ficha"
+    },
+    {
+      "from": "ficha",
+      "to": "api_detail",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "ficha",
+      "to": "guardar"
+    },
+    {
+      "from": "guardar",
+      "to": "api_patch",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Datos que consume",
+      "items": [
+        "Directorio: GET /patients?search=… con paginación.",
+        "Duplicados: GET /patients/check y 409 con el id existente.",
+        "Ficha: GET /patients/{id} y GET /patients/{id}/alerts."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Escritura",
+      "items": [
+        "POST /patients para crear y PATCH /patients/{id} para actualizar.",
+        "Los botones se ocultan sin patients.create o patients.edit."
+      ]
+    }
+  ],
+  "mainPath": [
+    "entrada",
+    "buscar",
+    "alta",
+    "ficha",
+    "guardar"
+  ]
+}

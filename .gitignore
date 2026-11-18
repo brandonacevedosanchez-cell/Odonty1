@@ -4,3 +4,11 @@ dist
 .env.local
 *.log
 .DS_Store
+
+# Diagramas: recibos y copias locales de Archify
+docs/diagramas/receipts/
+docs/diagramas/tools/.probe*
+docs/diagramas/tools/archify/
+docs/diagramas/**/*.finalize*.json
+docs/diagramas/**/*.browser-check.json
+docs/diagramas/**/*.delivery.json

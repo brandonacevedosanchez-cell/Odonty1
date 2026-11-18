@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Cambio de contraseña",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/cambio-contrasena.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "sesion",
+      "label": "Sesión autenticada"
+    },
+    {
+      "id": "api",
+      "label": "API de autenticación"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "forzado",
+      "lane": "sesion",
+      "col": 0,
+      "type": "security",
+      "label": "Cambio obligatorio",
+      "sublabel": "/cambiar-contrasena · ProtectedRoute"
+    },
+    {
+      "id": "form",
+      "lane": "sesion",
+      "col": 1,
+      "type": "frontend",
+      "label": "Contraseña actual y nueva",
+      "sublabel": "ChangePasswordForm"
+    },
+    {
+      "id": "cierre",
+      "lane": "sesion",
+      "col": 2,
+      "type": "security",
+      "label": "Cierre de sesión global",
+      "sublabel": "204 · tokens limpiados"
+    },
+    {
+      "id": "login",
+      "lane": "sesion",
+      "col": 3,
+      "type": "frontend",
+      "label": "Inicio de sesión",
+      "sublabel": "/login"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "POST /auth/change-password"
+    }
+  ],
+  "edges": [
+    {
+      "from": "forzado",
+      "to": "form"
+    },
+    {
+      "from": "form",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "form",
+      "to": "cierre",
+      "label": "204"
+    },
+    {
+      "from": "cierre",
+      "to": "login",
+      "label": "volver a entrar"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Dos entradas",
+      "items": [
+        "Cambio forzado: ProtectedRoute bloquea el resto de rutas.",
+        "Cambio voluntario desde /configuracion (Mi cuenta)."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Efecto del backend",
+      "items": [
+        "El cambio invalida todas las sesiones del usuario.",
+        "El formulario vuelve a /login y exige autenticarse de nuevo."
+      ]
+    }
+  ],
+  "mainPath": [
+    "forzado",
+    "form",
+    "cierre",
+    "login"
+  ]
+}

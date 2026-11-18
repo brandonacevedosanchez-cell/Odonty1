@@ -1,0 +1,105 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Módulo: facturación y pagos (pendiente)",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/facturacion.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de facturación"
+    },
+    {
+      "id": "integracion",
+      "label": "Integración pendiente",
+      "variant": "exception"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "entrada",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Facturación y pagos",
+      "sublabel": "/facturacion · billing.view"
+    },
+    {
+      "id": "aviso",
+      "lane": "ui",
+      "col": 1,
+      "type": "security",
+      "label": "Aviso de integración",
+      "sublabel": "ModuleApiNotice"
+    },
+    {
+      "id": "filtros",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Búsqueda y filtros",
+      "sublabel": "solo interfaz"
+    },
+    {
+      "id": "tabla",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Tabla y detalle",
+      "sublabel": "vacíos"
+    },
+    {
+      "id": "pendiente",
+      "lane": "integracion",
+      "col": 3,
+      "type": "external",
+      "label": "Sin API financiera",
+      "sublabel": "pendiente de integración"
+    }
+  ],
+  "edges": [
+    {
+      "from": "entrada",
+      "to": "aviso"
+    },
+    {
+      "from": "aviso",
+      "to": "filtros"
+    },
+    {
+      "from": "filtros",
+      "to": "tabla"
+    },
+    {
+      "from": "tabla",
+      "to": "pendiente",
+      "label": "no hay endpoint",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Pendiente de integración",
+      "items": [
+        "No hay endpoints financieros en el contrato actual.",
+        "No se calculan ingresos ni saldos y no se registran pagos.",
+        "Registrar pago y los filtros de estado están deshabilitados."
+      ]
+    }
+  ],
+  "mainPath": [
+    "entrada",
+    "aviso",
+    "filtros",
+    "tabla"
+  ]
+}
