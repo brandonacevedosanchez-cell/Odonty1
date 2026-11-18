@@ -558,7 +558,7 @@ export default function PatientsPage() {
               </label>
               <label className="field">
                 <span className="field__label">Tipo de documento <RequiredMark /></span>
-                <select className="input" value={values.document_type} onChange={update('document_type')} disabled={saving} required>
+                <select className="input patient-form-select" value={values.document_type} onChange={update('document_type')} disabled={saving} required>
                   {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                 </select>
                 {showError('document_type') && <p className="field__error">{showError('document_type')}</p>}
@@ -743,7 +743,7 @@ export default function PatientsPage() {
                 </label>
                 <label className="field">
                   <span className="field__label">Tipo de documento <RequiredMark /></span>
-                  <select className="input" required {...editInput('document_type')}>
+                  <select className="input patient-form-select" required {...editInput('document_type')}>
                     {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                   </select>
                   {showEditError('document_type') && <p className="field__error">{showEditError('document_type')}</p>}

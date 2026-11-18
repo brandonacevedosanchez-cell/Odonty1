@@ -27,7 +27,7 @@ export function GenderField({ value, onChange, disabled = false, error = '', req
     <>
       <select
         id={id}
-        className="input"
+        className="input patient-form-select"
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
@@ -126,7 +126,7 @@ export default function PatientClinicalFields({
       {showDocumentType && (
         <label className="field">
           <span className="field__label">Tipo de documento</span>
-          <select className="input" {...field('document_type')}>
+          <select className="input patient-form-select" {...field('document_type')}>
             {DOCUMENT_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
           </select>
           {fieldError('document_type')}

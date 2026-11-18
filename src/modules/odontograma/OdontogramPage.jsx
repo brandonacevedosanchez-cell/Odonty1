@@ -9,6 +9,7 @@ import { usePermissions } from '../../hooks/usePermissions.js';
 import { listAppointments } from '../../services/appointmentsService.js';
 import {
   createOdontogramEntry,
+  getOdontogramCatalogs,
   getCurrentOdontogram,
   getOdontogramHistory,
 } from '../../services/odontogramService.js';
@@ -21,7 +22,9 @@ import CupsSearch, { CupsCodeLabel } from './CupsSearch.jsx';
 import {
   EMPTY_ODONTOGRAM_FORM,
   buildOdontogramFields,
+  loadOdontogramCatalogs,
   validateOdontogramCups,
+  validateOdontogramSelection,
   withProcedureCode,
 } from './odontogramForm.js';
 import ToothSurfaceSelector from './ToothSurfaceSelector.jsx';
@@ -114,6 +117,17 @@ export default function OdontogramPage() {
     [appointmentsQuery.data],
   );
 
+  const odontogramCatalogsQuery = useAsync(
+    () => loadOdontogramCatalogs(getOdontogramCatalogs),
+    { enabled: canView },
+  );
+  const conditions = Array.isArray(odontogramCatalogsQuery.data?.conditions)
+    ? odontogramCatalogsQuery.data.conditions
+    : [];
+  const procedures = Array.isArray(odontogramCatalogsQuery.data?.procedures)
+    ? odontogramCatalogsQuery.data.procedures
+    : [];
+
   const teeth = DENTITION[dentition][arch];
   const selectedToothSelection = selectedTooth
     ? toothSelection.selections[selectedTooth] ?? { wholeTooth: false, surfaces: [] }
@@ -152,8 +166,9 @@ export default function OdontogramPage() {
       setFieldErrors({ appointment_id: 'Selecciona la cita asociada al hallazgo.' });
       return;
     }
-    if (!values.condition_code.trim() && !values.procedure_code.trim()) {
-      setFormError('Registra al menos un código de condición o un procedimiento CUPS.');
+    const selectionError = validateOdontogramSelection(values);
+    if (selectionError) {
+      setFieldErrors({ procedure_code: selectionError });
       return;
     }
     const cupsError = validateOdontogramCups(values);
@@ -455,32 +470,52 @@ export default function OdontogramPage() {
                               <span className="field__hint">El paciente no tiene citas activas.</span>
                             )}
                           </label>
+                          {odontogramCatalogsQuery.loading && (
+                            <span className="field__hint" role="status">Cargando hallazgos y procedimientos…</span>
+                          )}
+                          {odontogramCatalogsQuery.error && (
+                            <Alert type="error">No se pudo cargar el catálogo odontológico. Actualiza el módulo e inténtalo de nuevo.</Alert>
+                          )}
                           <label className="field">
-                            <span className="field__label">Código de condición</span>
-                            <input className="input" value={values.condition_code} onChange={(event) => { setValues((v) => ({ ...v, condition_code: event.target.value })); setFieldErrors((current) => ({ ...current, condition_code: '' })); }} disabled={saving} placeholder="Ej. caries" />
-                            <span className="field__hint">El backend valida el código contra los catálogos dentales.</span>
+                            <span className="field__label">Hallazgo (opcional)</span>
+                            <select
+                              className="input"
+                              value={values.condition_code}
+                              onChange={(event) => {
+                                setValues((current) => ({ ...current, condition_code: event.target.value }));
+                                setFieldErrors((current) => ({ ...current, condition_code: '' }));
+                              }}
+                              disabled={saving || odontogramCatalogsQuery.loading}
+                            >
+                              <option value="">Selecciona un hallazgo</option>
+                              {conditions.map((condition) => (
+                                <option key={condition.code} value={condition.code}>{condition.name}</option>
+                              ))}
+                            </select>
                             <FieldError error={fieldErrors.condition_code} />
                           </label>
-                          <div className="field">
-                            <span className="field__label">Procedimiento CUPS</span>
-                            <CupsSearch
-                              id="odontogram-procedure-code"
+                          <label className="field">
+                            <span className="field__label">Procedimiento (opcional)</span>
+                            <select
+                              className="input"
                               value={values.procedure_code}
-                              onChange={(code) => {
-                                setValues((v) => withProcedureCode(v, code));
+                              onChange={(event) => {
+                                setValues((current) => withProcedureCode(current, event.target.value));
                                 setFieldErrors((current) => ({ ...current, procedure_code: '', cups_code: '' }));
                               }}
-                              disabled={saving}
-                              error={fieldErrors.procedure_code}
-                            />
-                            <span className="field__hint">
-                              Busca por código (ej. 2321) o palabras (ej. obturación resina). Debe existir al menos un código de condición o un procedimiento.
-                            </span>
-                          </div>
+                              disabled={saving || odontogramCatalogsQuery.loading}
+                            >
+                              <option value="">Selecciona un procedimiento</option>
+                              {procedures.map((procedure) => (
+                                <option key={procedure.code} value={procedure.code}>{procedure.name}</option>
+                              ))}
+                            </select>
+                            <FieldError error={fieldErrors.procedure_code} />
+                          </label>
                           {values.procedure_code.trim() && (
                             <div className="field">
                               <span className="field__label">
-                                Código CUPS del procedimiento
+                                Código CUPS
                                 <span className="field__required" aria-hidden="true">*</span>
                               </span>
                               <CupsSearch
@@ -493,9 +528,10 @@ export default function OdontogramPage() {
                                 disabled={saving}
                                 error={fieldErrors.cups_code}
                                 placeholder="Busca el código CUPS (ej. 232102)"
+                                allowNonDental={false}
                               />
                               <span className="field__hint">
-                                Obligatorio cuando registras un procedimiento. Puedes marcar «Buscar en todo el catálogo» para ver cualquier código vigente.
+                                Obligatorio cuando registras un procedimiento. Se buscan códigos odontológicos vigentes.
                               </span>
                             </div>
                           )}

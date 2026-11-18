@@ -356,6 +356,26 @@
   gap: 14px;
 }
 
+.odontogram-details__col--form select.input {
+  padding-right: 40px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 20px center;
+  background-size: 16px 16px;
+}
+
+.odontogram-details__col--form select.input:disabled {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364758B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.odontogram-details__col--form > form {
+  width: 100%;
+  min-width: 0;
+}
+
 .odontogram-history {
   margin-top: 24px;
   padding-top: 20px;
@@ -498,9 +518,6 @@
   display: grid;
   gap: 14px;
   min-width: 0;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
 }
 
 .tooth-surface-selector__heading {
@@ -646,8 +663,9 @@
 
 .tooth-surface-legend {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-  gap: 7px 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -657,8 +675,10 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+  min-height: 36px;
+  padding: 6px;
   color: var(--slate-600);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .tooth-surface-legend__swatch {
@@ -762,7 +782,7 @@
   }
 
   .odontogram-details__body {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   }
 }
 

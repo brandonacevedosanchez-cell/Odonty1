@@ -7,9 +7,8 @@ import { getErrorMessage } from '../../utils/errors.js';
 
 /**
  * Buscador CUPS con autocompletado y debounce.
- * El valor del formulario es el código (`procedure_code` o `cups_code`); el
- * nombre oficial se consulta con GET /catalogs/cups/{code} para mostrarlo
- * aunque el código venga ya guardado.
+ * El valor del formulario es el `cups_code`; el nombre oficial se consulta con
+ * GET /catalogs/cups/{code} para mostrarlo aunque el código venga ya guardado.
  * Por defecto busca solo códigos odontológicos (`dental_only=true`); la
  * casilla "Buscar en todo el catálogo" consulta el catálogo completo.
  */
@@ -20,6 +19,7 @@ export default function CupsSearch({
   disabled = false,
   error = '',
   placeholder = 'Busca por código o nombre (ej. 2321 u obturación resina)',
+  allowNonDental = true,
 }) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -147,14 +147,16 @@ export default function CupsSearch({
 
       {open && (
         <div className="combo__panel cups-search__panel">
-          <label className="cups-search__scope">
-            <input
-              type="checkbox"
-              checked={!dentalOnly}
-              onChange={(event) => setDentalOnly(!event.target.checked)}
-            />
-            Buscar en todo el catálogo
-          </label>
+          {allowNonDental && (
+            <label className="cups-search__scope">
+              <input
+                type="checkbox"
+                checked={!dentalOnly}
+                onChange={(event) => setDentalOnly(!event.target.checked)}
+              />
+              Buscar en todo el catálogo
+            </label>
+          )}
           {loading && <p className="combo__empty">Buscando en el catálogo CUPS…</p>}
           {!loading && debouncedQuery.length < CUPS_QUERY_MIN_LENGTH && (
             <p className="combo__empty">Escribe al menos {CUPS_QUERY_MIN_LENGTH} caracteres.</p>

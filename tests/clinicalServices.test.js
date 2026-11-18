@@ -14,6 +14,7 @@ import {
 import { createClinicalEntry, listClinicalHistory } from '../src/services/clinicalHistoryService.js';
 import {
   createOdontogramEntry,
+  getOdontogramCatalogs,
   getCurrentOdontogram,
   getOdontogramHistory,
 } from '../src/services/odontogramService.js';
@@ -47,6 +48,7 @@ beforeEach(() => {
 test('los listados clínicos llaman sus GET y leen X-Total-Count', async () => {
   const patients = await listPatients({ search: 'Ana', limit: 10, offset: 0 });
   const history = await listClinicalHistory({ patientId: 21, limit: 10, offset: 0 });
+  const odontogramCatalogs = await getOdontogramCatalogs();
   const currentOdontogram = await getCurrentOdontogram(21);
   const odontogramHistory = await getOdontogramHistory(21, { toothFdi: 11, limit: 10, offset: 0 });
   const notifications = await listNotifications({ unreadOnly: true, limit: 15, offset: 0 });
@@ -57,10 +59,12 @@ test('los listados clínicos llaman sus GET y leen X-Total-Count', async () => {
   assert.equal(odontogramHistory.total, 7);
   assert.equal(notifications.total, 7);
   assert.deepEqual(currentOdontogram, []);
+  assert.deepEqual(odontogramCatalogs, []);
   assert.deepEqual(appointmentsResult, []);
   assert.deepEqual(calls.map(({ method, path }) => `${method} ${path}`), [
     'GET /patients',
     'GET /clinical-history',
+    'GET /odontogram/catalogs',
     'GET /odontogram/21',
     'GET /odontogram/21/history',
     'GET /notifications',
@@ -69,9 +73,9 @@ test('los listados clínicos llaman sus GET y leen X-Total-Count', async () => {
   assert.equal(calls.every((call) => call.authorization === 'Bearer clinical-test-access'), true);
   assert.equal(calls[0].search.get('search'), 'Ana');
   assert.equal(calls[1].search.get('patient_id'), '21');
-  assert.equal(calls[3].search.get('tooth_fdi'), '11');
-  assert.equal(calls[4].search.get('unread_only'), 'true');
-  assert.equal(calls[5].search.get('patient_id'), '21');
+  assert.equal(calls[4].search.get('tooth_fdi'), '11');
+  assert.equal(calls[5].search.get('unread_only'), 'true');
+  assert.equal(calls[6].search.get('patient_id'), '21');
 });
 
 test('los servicios paginados usan limit 50 por defecto y offset no negativo', async () => {
@@ -211,13 +215,12 @@ test('detecta el id del 409 y las alertas médicas', () => {
   assert.equal(hasMedicalAlerts({ allergies: '  ', current_medications: '', medical_conditions: null }), false);
 });
 
-test('el odontograma envía surface null para un diente completo', async () => {
+test('el odontograma omite surface para un diente completo', async () => {
   await createOdontogramEntry({ appointment_id: 31, tooth_fdi: 16, surface: null });
 
   assert.deepEqual(calls[0].body, {
     appointment_id: 31,
     tooth_fdi: 16,
-    surface: null,
   });
 });
 
@@ -226,38 +229,37 @@ test('el odontograma envía cups_code solo junto al procedimiento', async () => 
     appointment_id: 31,
     tooth_fdi: 16,
     surface: 'oclusal',
-    procedure_code: ' 232102 ',
-    cups_code: ' 232102 ',
+    procedure_code: ' resina ',
+    cups_code: ' 234105 ',
   });
   await createOdontogramEntry({
     appointment_id: 31,
     tooth_fdi: 16,
-    surface: null,
     condition_code: 'C1',
     cups_code: '232102',
   });
-  await createOdontogramEntry({ appointment_id: 31, tooth_fdi: 16, surface: null, procedure_code: '232102' });
+  await createOdontogramEntry({ appointment_id: 31, tooth_fdi: 16, procedure_code: 'resina' });
   await createOdontogramEntry({
     appointment_id: 31,
     tooth_fdi: 16,
-    surface: null,
-    procedure_code: '232102',
-    cups_code: '123456789012345678901234',
+    procedure_code: 'resina',
+    cups_code: '234105',
   });
 
   assert.deepEqual(calls[0].body, {
     appointment_id: 31,
     tooth_fdi: 16,
     surface: 'oclusal',
-    procedure_code: '232102',
-    cups_code: '232102',
+    procedure_code: 'resina',
+    cups_code: '234105',
   });
   assert.deepEqual(calls[1].body, {
     appointment_id: 31,
     tooth_fdi: 16,
-    surface: null,
     condition_code: 'C1',
   });
+  assert.equal('surface' in calls[1].body, false);
   assert.equal('cups_code' in calls[2].body, false);
-  assert.equal(calls[3].body.cups_code, '12345678901234567890');
+  assert.equal(calls[3].body.cups_code, '234105');
+  assert.equal(calls[3].body.procedure_code, 'resina');
 });
