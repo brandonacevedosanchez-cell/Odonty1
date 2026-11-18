@@ -1,0 +1,111 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Administración: roles y permisos",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/administracion-roles.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de roles"
+    },
+    {
+      "id": "local",
+      "label": "Datos locales",
+      "variant": "exception"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "roles",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Roles y permisos",
+      "sublabel": "/roles · users.view"
+    },
+    {
+      "id": "matriz",
+      "lane": "ui",
+      "col": 1,
+      "type": "security",
+      "label": "Matriz de permisos",
+      "sublabel": "ROLE_PERMISSIONS"
+    },
+    {
+      "id": "desc",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Descripción de roles",
+      "sublabel": "ROLE_DESCRIPTIONS"
+    },
+    {
+      "id": "reglas",
+      "lane": "ui",
+      "col": 3,
+      "type": "security",
+      "label": "Reglas de asignación",
+      "sublabel": "assignableRoles · roleChangeAccess"
+    },
+    {
+      "id": "estatica",
+      "lane": "local",
+      "col": 3,
+      "type": "database",
+      "label": "Sin endpoint",
+      "sublabel": "constantes del frontend"
+    }
+  ],
+  "edges": [
+    {
+      "from": "roles",
+      "to": "matriz"
+    },
+    {
+      "from": "matriz",
+      "to": "desc"
+    },
+    {
+      "from": "desc",
+      "to": "reglas"
+    },
+    {
+      "from": "reglas",
+      "to": "estatica",
+      "label": "no consulta API",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Honestidad del estado",
+      "items": [
+        "La matriz es estática: no existe GET /permissions en el contrato.",
+        "El backend conserva la autorización final de cada petición."
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Dónde se cambia un rol",
+      "items": [
+        "El cambio real de rol se hace desde /usuarios, no desde /roles."
+      ]
+    }
+  ],
+  "mainPath": [
+    "roles",
+    "matriz",
+    "desc",
+    "reglas"
+  ]
+}

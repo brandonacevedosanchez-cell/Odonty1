@@ -1,0 +1,129 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Administración: revisión de clínicas",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/administracion-clinicas.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantallas de clínicas"
+    },
+    {
+      "id": "api",
+      "label": "API de clínicas"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "registro",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Registro público",
+      "sublabel": "/registro-clinica"
+    },
+    {
+      "id": "pendientes",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Solicitudes pendientes",
+      "sublabel": "/clinicas · clinics.review strict"
+    },
+    {
+      "id": "revisar",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Aprobar o rechazar",
+      "sublabel": "confirmación"
+    },
+    {
+      "id": "fin",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Listado actualizado",
+      "sublabel": "recarga"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 0,
+      "type": "backend",
+      "label": "POST /clinics/register"
+    },
+    {
+      "id": "api_get",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "GET /clinics/pending"
+    },
+    {
+      "id": "api_patch",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "PATCH /clinics/{id}/review"
+    }
+  ],
+  "edges": [
+    {
+      "from": "registro",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "registro",
+      "to": "pendientes",
+      "label": "solicitud creada"
+    },
+    {
+      "from": "pendientes",
+      "to": "api_get",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "pendientes",
+      "to": "revisar"
+    },
+    {
+      "from": "revisar",
+      "to": "api_patch",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "revisar",
+      "to": "fin",
+      "label": "aprobada / rechazada"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Acceso",
+      "items": [
+        "Solo el superadministrador ve /clinicas (rol + clinics.review).",
+        "La revisión no se carga en modo vista previa."
+      ]
+    }
+  ],
+  "mainPath": [
+    "registro",
+    "pendientes",
+    "revisar",
+    "fin"
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Acceso: inicio de sesión",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/acceso-login.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "publico",
+      "label": "Pantalla pública"
+    },
+    {
+      "id": "api",
+      "label": "API de autenticación"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "form",
+      "lane": "publico",
+      "col": 0,
+      "type": "frontend",
+      "label": "Formulario de acceso",
+      "sublabel": "/login · correo y contraseña"
+    },
+    {
+      "id": "enviar",
+      "lane": "publico",
+      "col": 1,
+      "type": "frontend",
+      "label": "Enviar credenciales",
+      "sublabel": "signIn"
+    },
+    {
+      "id": "mfa",
+      "lane": "publico",
+      "col": 2,
+      "type": "security",
+      "label": "Verificación MFA",
+      "sublabel": "/verificar-mfa · 6 dígitos"
+    },
+    {
+      "id": "inicio",
+      "lane": "publico",
+      "col": 3,
+      "type": "frontend",
+      "label": "Inicio",
+      "sublabel": "GuestRoute → ruta previa o /"
+    },
+    {
+      "id": "api_login",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "POST /auth/login"
+    },
+    {
+      "id": "api_mfa",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "POST /auth/mfa/verify"
+    },
+    {
+      "id": "api_me",
+      "lane": "api",
+      "col": 3,
+      "type": "backend",
+      "label": "GET /auth/me"
+    }
+  ],
+  "edges": [
+    {
+      "from": "form",
+      "to": "enviar"
+    },
+    {
+      "from": "enviar",
+      "to": "api_login",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "enviar",
+      "to": "mfa",
+      "label": "MFA requerido"
+    },
+    {
+      "from": "mfa",
+      "to": "api_mfa",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "mfa",
+      "to": "inicio",
+      "label": "sesión iniciada"
+    },
+    {
+      "from": "inicio",
+      "to": "api_me",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Sin MFA",
+      "items": [
+        "Al autenticarse, GuestRoute redirige al inicio o a la ruta previa.",
+        "Con MFA pendiente se navega a /verificar-mfa y luego a Inicio."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Errores",
+      "items": [
+        "401: alerta en el formulario, sin navegación.",
+        "Servidor lento: aviso informativo, la sesión no se altera."
+      ]
+    }
+  ],
+  "mainPath": [
+    "form",
+    "enviar",
+    "mfa",
+    "inicio"
+  ]
+}

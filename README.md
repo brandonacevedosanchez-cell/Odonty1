@@ -59,7 +59,7 @@ docker compose up --build
 VITE_API_URL=https://mi-api.example.com docker compose up --build
 
 # Solo Docker
-docker build -t odonty-frontend --build-arg VITE_API_URL=https://odontyoriginal-1.onrender.com .
+docker build -t odonty-frontend --build-arg VITE_API_URL=https://mi-api.example.com .
 docker run --rm -p 8080:80 odonty-frontend
 ```
 

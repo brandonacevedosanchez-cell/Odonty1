@@ -17,7 +17,7 @@ import {
   PATIENT_GUARDIAN_RELATIONSHIP_MAX_LENGTH,
   TOOTH_SURFACES,
 } from '../src/constants/apiValues.js';
-import { EPS_SELECT_OPTIONS, NO_EPS_OPTION } from '../src/constants/eps.js';
+import { EPS_OPTIONS, EPS_SELECT_OPTIONS, NO_EPS_OPTION } from '../src/constants/eps.js';
 
 test('los valores centralizados coinciden con el contrato del 13-nov-2026', () => {
   assert.deepEqual(PATIENT_DOCUMENT_TYPES, ['TI', 'CC', 'CE', 'PA']);
@@ -41,6 +41,7 @@ test('sexo, alertas y EPS respetan los límites del contrato', () => {
   assert.equal(PATIENT_ALERT_MAX_LENGTH, 1000);
   assert.equal(PATIENT_GUARDIAN_RELATIONSHIP_MAX_LENGTH, 50);
 
+  assert.equal(EPS_OPTIONS.length, 28);
   assert.ok(EPS_SELECT_OPTIONS.includes(NO_EPS_OPTION));
   assert.ok(EPS_SELECT_OPTIONS.every((eps) => eps.length <= 100));
   assert.equal(new Set(EPS_SELECT_OPTIONS).size, EPS_SELECT_OPTIONS.length);

@@ -18,12 +18,17 @@ import { formatDateTime } from '../../utils/format.js';
 import { PERMISSIONS } from '../../utils/permissions.js';
 import PatientAlertsBanner from '../pacientes/PatientAlertsBanner.jsx';
 import CupsSearch, { CupsCodeLabel } from './CupsSearch.jsx';
+import {
+  EMPTY_ODONTOGRAM_FORM,
+  buildOdontogramFields,
+  validateOdontogramCups,
+  withProcedureCode,
+} from './odontogramForm.js';
 import ToothSurfaceSelector from './ToothSurfaceSelector.jsx';
 import { DENTITION, getSurfaceLabels } from './toothData.js';
 import useToothSelection from './useToothSelection.js';
 
 const HISTORY_LIMIT = 10;
-const EMPTY = { appointment_id: '', condition_code: '', procedure_code: '', notes: '' };
 
 function ToothButton({ number, arch, dentition, selected, hasFinding, onSelect }) {
   return (
@@ -58,7 +63,7 @@ export default function OdontogramPage() {
   const [selectedTooth, setSelectedTooth] = useState(null);
   const [historyOffset, setHistoryOffset] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
-  const [values, setValues] = useState(EMPTY);
+  const [values, setValues] = useState(EMPTY_ODONTOGRAM_FORM);
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -121,7 +126,7 @@ export default function OdontogramPage() {
     setSelectedTooth(null);
     setHistoryOffset(0);
     setFormOpen(false);
-    setValues(EMPTY);
+    setValues(EMPTY_ODONTOGRAM_FORM);
     setFormError('');
   }
 
@@ -151,22 +156,25 @@ export default function OdontogramPage() {
       setFormError('Registra al menos un código de condición o un procedimiento CUPS.');
       return;
     }
+    const cupsError = validateOdontogramCups(values);
+    if (cupsError) {
+      setFieldErrors({ cups_code: cupsError });
+      return;
+    }
     setSaving(true);
     try {
       // `surface` es nullable en el contrato: diente completo se envía sin superficie.
       const targets = wholeTooth ? [null] : surfaces;
+      const fields = buildOdontogramFields(values);
       for (const surface of targets) {
         await createOdontogramEntry({
-          appointment_id: Number(values.appointment_id),
+          ...fields,
           tooth_fdi: Number(selectedTooth),
           surface,
-          condition_code: values.condition_code.trim() || undefined,
-          procedure_code: values.procedure_code.trim() || undefined,
-          notes: values.notes,
         });
       }
       toast.success(`Hallazgo registrado en la pieza ${selectedTooth}.`);
-      setValues(EMPTY);
+      setValues(EMPTY_ODONTOGRAM_FORM);
       setFormOpen(false);
       await Promise.all([currentQuery.reload({ silent: true }), historyQuery.reload({ silent: true })]);
     } catch (error) {
@@ -185,7 +193,7 @@ export default function OdontogramPage() {
         description="Consulta el estado dental por pieza y registra hallazgos clínicos."
       />
 
-      <section className="panel section">
+      <section className="panel section odontogram-patients">
         <div className="module-toolbar">
           <div>
             <h2 className="panel__title">Paciente</h2>
@@ -212,12 +220,12 @@ export default function OdontogramPage() {
           <EmptyState icon="users" title="Sin pacientes" text={query ? 'Ningún paciente coincide con tu búsqueda.' : 'Registra pacientes para consultar su odontograma.'} />
         )}
         {!patientsQuery.loading && !patientsQuery.error && patients.length > 0 && (
-          <ul className="result-list">
+          <ul className="result-list patient-chips">
             {patients.map((patient) => (
               <li key={patient.id}>
                 <button
                   type="button"
-                  className={`result-item ${selectedPatient?.id === patient.id ? 'result-item--active' : ''}`.trim()}
+                  className={`result-item patient-chip ${selectedPatient?.id === patient.id ? 'result-item--active' : ''}`.trim()}
                   onClick={() => choosePatient(patient)}
                   aria-pressed={selectedPatient?.id === patient.id}
                 >
@@ -300,170 +308,215 @@ export default function OdontogramPage() {
               </div>
             </div>
             <p className="odontogram-caption">Numeración FDI · Las piezas con punto tienen hallazgos registrados.</p>
+
+            <section className="odontogram-history" aria-labelledby="odontogram-history-heading">
+              <div className="module-section-heading">
+                <div>
+                  <h2 className="panel__title" id="odontogram-history-heading">
+                    Historial {selectedTooth ? `de la pieza ${selectedTooth}` : 'del paciente'}
+                  </h2>
+                  <p className="module-muted">{historyTotal} {historyTotal === 1 ? 'registro' : 'registros'}</p>
+                </div>
+                {selectedTooth && (
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setSelectedTooth(null); setHistoryOffset(0); }}>
+                    Ver todo el historial
+                  </button>
+                )}
+              </div>
+
+              {historyQuery.loading && <LoadingState message="Cargando historial…" showSlowNotice={false} />}
+              {!historyQuery.loading && historyQuery.error && (
+                <ErrorState message={historyQuery.error} onRetry={() => historyQuery.reload()} title="No se pudo cargar el historial" />
+              )}
+              {!historyQuery.loading && !historyQuery.error && history.length === 0 && (
+                <EmptyState icon="tooth" title="Sin historial" text="Aún no hay hallazgos registrados para esta selección." />
+              )}
+              {!historyQuery.loading && !historyQuery.error && history.length > 0 && (
+                <>
+                  <ul className="record-list">
+                    {history.map((entry) => (
+                      <li className="record-card" key={entry.id}>
+                        <div className="record-card__head record-card__head--static">
+                          <span>
+                            <strong>Pieza {entry.tooth_fdi} · {surfaceLabels[entry.surface] ?? entry.surface ?? 'Diente completo'}</strong>
+                            <span className="module-muted">
+                              {' '}· {entry.condition_name || entry.condition_code || '—'}
+                              {(entry.procedure_code || entry.procedure_name) && (
+                                <> · <CupsCodeLabel code={entry.procedure_code} name={entry.procedure_name} /></>
+                              )}
+                            </span>
+                            {(entry.cups_code || entry.cups_name) && (
+                              <span className="odontogram-cups">
+                                CUPS {entry.cups_code || '—'}{entry.cups_name ? ` · ${entry.cups_name}` : ''}
+                              </span>
+                            )}
+                          </span>
+                          <span className="module-muted">{formatDateTime(entry.created_at)}</span>
+                        </div>
+                        {entry.notes && <p className="record-card__note">{entry.notes}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="pagination" role="navigation" aria-label="Paginación del odontograma">
+                    <span className="pagination__info">{historyTotal > 0 ? `${historyOffset + 1}–${Math.min(historyOffset + HISTORY_LIMIT, historyTotal)} de ${historyTotal}` : '0 registros'}</span>
+                    <div className="pagination__actions">
+                      <button type="button" className="btn btn--secondary btn--sm" onClick={() => setHistoryOffset((current) => Math.max(0, current - HISTORY_LIMIT))} disabled={historyOffset === 0 || historyQuery.loading}>Anterior</button>
+                      <span className="pagination__page">Página {historyPage} de {historyPages}</span>
+                      <button type="button" className="btn btn--secondary btn--sm" onClick={() => setHistoryOffset((current) => current + HISTORY_LIMIT)} disabled={historyOffset + HISTORY_LIMIT >= historyTotal || historyQuery.loading}>Siguiente</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </section>
           </section>
 
           <aside className="panel odontogram-details" aria-live="polite">
-            <span className="odontogram-details__icon"><Icon name="tooth" size={23} /></span>
-            <h2 className="panel__title">Detalle de pieza</h2>
+            <div className="odontogram-details__head">
+              <span className="odontogram-details__icon"><Icon name="tooth" size={20} /></span>
+              <h2 className="panel__title">Detalle de pieza</h2>
+            </div>
             {!selectedTooth && (
               <p className="module-muted">Selecciona una pieza dental para consultar sus hallazgos y su historial.</p>
             )}
             {selectedTooth && (
               <>
-                <dl className="details">
-                  <div className="detail"><dt>Identificador FDI</dt><dd>{selectedTooth}</dd></div>
-                  <div className="detail"><dt>Dentición</dt><dd>{DENTITION[dentition].label}</dd></div>
-                  <div className="detail"><dt>Arcada</dt><dd>{arch === 'upper' ? 'Superior' : 'Inferior'}</dd></div>
-                  {toothEntries.length === 0 ? (
-                    <div className="detail"><dt>Estado actual</dt><dd>Sin hallazgos registrados</dd></div>
-                  ) : (
-                    toothEntries.map((entry) => (
-                      <div className="detail" key={entry.id}>
-                        <dt>{surfaceLabels[entry.surface] ?? entry.surface ?? 'Diente completo'}</dt>
-                        <dd>
+                <dl className="odontogram-summary">
+                  <div className="odontogram-chip"><dt>FDI</dt><dd>{selectedTooth}</dd></div>
+                  <div className="odontogram-chip"><dt>Dentición</dt><dd>{DENTITION[dentition].label}</dd></div>
+                  <div className="odontogram-chip"><dt>Arcada</dt><dd>{arch === 'upper' ? 'Superior' : 'Inferior'}</dd></div>
+                  <div className="odontogram-chip">
+                    <dt>Estado actual</dt>
+                    <dd>{toothEntries.length === 0 ? 'Sin hallazgos' : `${toothEntries.length} ${toothEntries.length === 1 ? 'hallazgo' : 'hallazgos'}`}</dd>
+                  </div>
+                </dl>
+
+                {toothEntries.length > 0 && (
+                  <ul className="odontogram-current-list">
+                    {toothEntries.map((entry) => (
+                      <li className="odontogram-current" key={entry.id}>
+                        <span className="odontogram-current__surface">
+                          {surfaceLabels[entry.surface] ?? entry.surface ?? 'Diente completo'}
+                        </span>
+                        <span className="odontogram-current__detail">
                           {entry.condition_name || entry.condition_code || '—'}
                           {(entry.procedure_code || entry.procedure_name) && (
                             <> · <CupsCodeLabel code={entry.procedure_code} name={entry.procedure_name} /></>
                           )}
-                        </dd>
-                      </div>
-                    ))
-                  )}
-                </dl>
+                          {(entry.cups_code || entry.cups_name) && (
+                            <span className="odontogram-cups">
+                              CUPS {entry.cups_code || '—'}{entry.cups_name ? ` · ${entry.cups_name}` : ''}
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
                 {canCreate && (
-                  <>
-                    <ToothSurfaceSelector
-                      toothNumber={selectedTooth}
-                      arch={arch}
-                      selection={selectedToothSelection}
-                      onToggleSurface={(surface) => toothSelection.toggleSurface(selectedTooth, surface)}
-                      onToggleWholeTooth={() => toothSelection.toggleWholeTooth(selectedTooth)}
-                    />
-                    <FieldError error={fieldErrors.tooth_fdi} />
-                    <FieldError error={fieldErrors.surface} />
-                    <button
-                      type="button"
-                      className="btn btn--primary btn--block"
-                      onClick={() => { setFormOpen((open) => !open); setFormError(''); }}
-                    >
-                      <Icon name="plus" size={16} /> Registrar hallazgo
-                    </button>
-                  </>
+                  <div className="odontogram-details__body">
+                    <div className="odontogram-details__col">
+                      <ToothSurfaceSelector
+                        toothNumber={selectedTooth}
+                        arch={arch}
+                        selection={selectedToothSelection}
+                        onToggleSurface={(surface) => toothSelection.toggleSurface(selectedTooth, surface)}
+                        onToggleWholeTooth={() => toothSelection.toggleWholeTooth(selectedTooth)}
+                      />
+                      <FieldError error={fieldErrors.tooth_fdi} />
+                      <FieldError error={fieldErrors.surface} />
+                    </div>
+
+                    <div className="odontogram-details__col odontogram-details__col--form">
+                      <button
+                        type="button"
+                        className="btn btn--primary btn--block"
+                        onClick={() => { setFormOpen((open) => !open); setFormError(''); }}
+                        aria-expanded={formOpen}
+                      >
+                        <Icon name="plus" size={16} /> Registrar hallazgo
+                      </button>
+
+                      {formOpen && (
+                        <form onSubmit={handleCreate} className="form form--spaced">
+                          {formError && <Alert type="error">{formError}</Alert>}
+                          <label className="field">
+                            <span className="field__label">Cita asociada</span>
+                            <select className="input" value={values.appointment_id} onChange={(event) => { setValues((v) => ({ ...v, appointment_id: event.target.value })); setFieldErrors((current) => ({ ...current, appointment_id: '' })); }} disabled={saving} required>
+                              <option value="">Selecciona una cita</option>
+                              {appointments.map((appointment) => (
+                                <option key={appointment.id} value={appointment.id}>
+                                  {String(appointment.scheduled_date ?? '').slice(0, 10)} {String(appointment.start_time ?? '').slice(0, 5)}
+                                </option>
+                              ))}
+                            </select>
+                            <FieldError error={fieldErrors.appointment_id} />
+                            {!appointmentsQuery.loading && appointments.length === 0 && (
+                              <span className="field__hint">El paciente no tiene citas activas.</span>
+                            )}
+                          </label>
+                          <label className="field">
+                            <span className="field__label">Código de condición</span>
+                            <input className="input" value={values.condition_code} onChange={(event) => { setValues((v) => ({ ...v, condition_code: event.target.value })); setFieldErrors((current) => ({ ...current, condition_code: '' })); }} disabled={saving} placeholder="Ej. caries" />
+                            <span className="field__hint">El backend valida el código contra los catálogos dentales.</span>
+                            <FieldError error={fieldErrors.condition_code} />
+                          </label>
+                          <div className="field">
+                            <span className="field__label">Procedimiento CUPS</span>
+                            <CupsSearch
+                              id="odontogram-procedure-code"
+                              value={values.procedure_code}
+                              onChange={(code) => {
+                                setValues((v) => withProcedureCode(v, code));
+                                setFieldErrors((current) => ({ ...current, procedure_code: '', cups_code: '' }));
+                              }}
+                              disabled={saving}
+                              error={fieldErrors.procedure_code}
+                            />
+                            <span className="field__hint">
+                              Busca por código (ej. 2321) o palabras (ej. obturación resina). Debe existir al menos un código de condición o un procedimiento.
+                            </span>
+                          </div>
+                          {values.procedure_code.trim() && (
+                            <div className="field">
+                              <span className="field__label">
+                                Código CUPS del procedimiento
+                                <span className="field__required" aria-hidden="true">*</span>
+                              </span>
+                              <CupsSearch
+                                id="odontogram-cups-code"
+                                value={values.cups_code}
+                                onChange={(code) => {
+                                  setValues((v) => ({ ...v, cups_code: code }));
+                                  setFieldErrors((current) => ({ ...current, cups_code: '' }));
+                                }}
+                                disabled={saving}
+                                error={fieldErrors.cups_code}
+                                placeholder="Busca el código CUPS (ej. 232102)"
+                              />
+                              <span className="field__hint">
+                                Obligatorio cuando registras un procedimiento. Puedes marcar «Buscar en todo el catálogo» para ver cualquier código vigente.
+                              </span>
+                            </div>
+                          )}
+                          <label className="field">
+                            <span className="field__label">Notas</span>
+                            <textarea className="input module-textarea" value={values.notes} onChange={(event) => { setValues((v) => ({ ...v, notes: event.target.value })); setFieldErrors((current) => ({ ...current, notes: '' })); }} disabled={saving} maxLength={500} />
+                            <FieldError error={fieldErrors.notes} />
+                          </label>
+                          <button type="submit" className="btn btn--primary" disabled={saving}>
+                            {saving ? <Spinner size={16} /> : <Icon name="tooth" size={16} />}
+                            {saving ? 'Guardando…' : 'Guardar hallazgo'}
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
                 )}
               </>
             )}
-
-            {formOpen && canCreate && selectedTooth && (
-              <form onSubmit={handleCreate} className="form form--spaced">
-                {formError && <Alert type="error">{formError}</Alert>}
-                <label className="field">
-                  <span className="field__label">Cita asociada</span>
-                  <select className="input" value={values.appointment_id} onChange={(event) => { setValues((v) => ({ ...v, appointment_id: event.target.value })); setFieldErrors((current) => ({ ...current, appointment_id: '' })); }} disabled={saving} required>
-                    <option value="">Selecciona una cita</option>
-                    {appointments.map((appointment) => (
-                      <option key={appointment.id} value={appointment.id}>
-                        {String(appointment.scheduled_date ?? '').slice(0, 10)} {String(appointment.start_time ?? '').slice(0, 5)}
-                      </option>
-                    ))}
-                  </select>
-                  <FieldError error={fieldErrors.appointment_id} />
-                  {!appointmentsQuery.loading && appointments.length === 0 && (
-                    <span className="field__hint">El paciente no tiene citas activas.</span>
-                  )}
-                </label>
-                <label className="field">
-                  <span className="field__label">Código de condición</span>
-                  <input className="input" value={values.condition_code} onChange={(event) => { setValues((v) => ({ ...v, condition_code: event.target.value })); setFieldErrors((current) => ({ ...current, condition_code: '' })); }} disabled={saving} placeholder="Ej. caries" />
-                  <span className="field__hint">El backend valida el código contra los catálogos dentales.</span>
-                  <FieldError error={fieldErrors.condition_code} />
-                </label>
-                <div className="field">
-                  <span className="field__label">Procedimiento CUPS</span>
-                  <CupsSearch
-                    id="odontogram-procedure-code"
-                    value={values.procedure_code}
-                    onChange={(code) => {
-                      setValues((v) => ({ ...v, procedure_code: code }));
-                      setFieldErrors((current) => ({ ...current, procedure_code: '' }));
-                    }}
-                    disabled={saving}
-                    error={fieldErrors.procedure_code}
-                  />
-                  <span className="field__hint">
-                    Busca por código (ej. 2321) o palabras (ej. obturación resina). Debe existir al menos un código de condición o un procedimiento.
-                  </span>
-                </div>
-                <label className="field">
-                  <span className="field__label">Notas</span>
-                  <textarea className="input module-textarea" value={values.notes} onChange={(event) => { setValues((v) => ({ ...v, notes: event.target.value })); setFieldErrors((current) => ({ ...current, notes: '' })); }} disabled={saving} maxLength={500} />
-                  <FieldError error={fieldErrors.notes} />
-                </label>
-                <button type="submit" className="btn btn--primary" disabled={saving}>
-                  {saving ? <Spinner size={16} /> : <Icon name="tooth" size={16} />}
-                  {saving ? 'Guardando…' : 'Guardar hallazgo'}
-                </button>
-              </form>
-            )}
           </aside>
         </div>
-      )}
-
-      {selectedPatient && (
-        <section className="panel section" aria-labelledby="odontogram-history-heading">
-          <div className="module-section-heading">
-            <div>
-              <h2 className="panel__title" id="odontogram-history-heading">
-                Historial {selectedTooth ? `de la pieza ${selectedTooth}` : 'del paciente'}
-              </h2>
-              <p className="module-muted">{historyTotal} {historyTotal === 1 ? 'registro' : 'registros'}</p>
-            </div>
-            {selectedTooth && (
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setSelectedTooth(null); setHistoryOffset(0); }}>
-                Ver todo el historial
-              </button>
-            )}
-          </div>
-
-          {historyQuery.loading && <LoadingState message="Cargando historial…" showSlowNotice={false} />}
-          {!historyQuery.loading && historyQuery.error && (
-            <ErrorState message={historyQuery.error} onRetry={() => historyQuery.reload()} title="No se pudo cargar el historial" />
-          )}
-          {!historyQuery.loading && !historyQuery.error && history.length === 0 && (
-            <EmptyState icon="tooth" title="Sin historial" text="Aún no hay hallazgos registrados para esta selección." />
-          )}
-          {!historyQuery.loading && !historyQuery.error && history.length > 0 && (
-            <>
-              <ul className="record-list">
-                {history.map((entry) => (
-                  <li className="record-card" key={entry.id}>
-                    <div className="record-card__head record-card__head--static">
-                      <span>
-                        <strong>Pieza {entry.tooth_fdi} · {surfaceLabels[entry.surface] ?? entry.surface ?? 'Diente completo'}</strong>
-                        <span className="module-muted">
-                          {' '}· {entry.condition_name || entry.condition_code || '—'}
-                          {(entry.procedure_code || entry.procedure_name) && (
-                            <> · <CupsCodeLabel code={entry.procedure_code} name={entry.procedure_name} /></>
-                          )}
-                        </span>
-                      </span>
-                      <span className="module-muted">{formatDateTime(entry.created_at)}</span>
-                    </div>
-                    {entry.notes && <p className="record-card__note">{entry.notes}</p>}
-                  </li>
-                ))}
-              </ul>
-              <div className="pagination" role="navigation" aria-label="Paginación del odontograma">
-                <span className="pagination__info">{historyTotal > 0 ? `${historyOffset + 1}–${Math.min(historyOffset + HISTORY_LIMIT, historyTotal)} de ${historyTotal}` : '0 registros'}</span>
-                <div className="pagination__actions">
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => setHistoryOffset((current) => Math.max(0, current - HISTORY_LIMIT))} disabled={historyOffset === 0 || historyQuery.loading}>Anterior</button>
-                  <span className="pagination__page">Página {historyPage} de {historyPages}</span>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => setHistoryOffset((current) => current + HISTORY_LIMIT)} disabled={historyOffset + HISTORY_LIMIT >= historyTotal || historyQuery.loading}>Siguiente</button>
-                </div>
-              </div>
-            </>
-          )}
-        </section>
       )}
     </>
   );

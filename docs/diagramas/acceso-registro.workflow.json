@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Acceso: registro de clínica",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/acceso-registro.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "publico",
+      "label": "Pantalla pública"
+    },
+    {
+      "id": "api",
+      "label": "API de clínicas"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "form",
+      "lane": "publico",
+      "col": 0,
+      "type": "frontend",
+      "label": "Registrar mi clínica",
+      "sublabel": "/registro-clinica · sin guard"
+    },
+    {
+      "id": "datos",
+      "lane": "publico",
+      "col": 1,
+      "type": "frontend",
+      "label": "Datos y documentos",
+      "sublabel": "clínica · administrador · archivos"
+    },
+    {
+      "id": "enviar",
+      "lane": "publico",
+      "col": 2,
+      "type": "frontend",
+      "label": "Enviar solicitud",
+      "sublabel": "FormData multipart"
+    },
+    {
+      "id": "exito",
+      "lane": "publico",
+      "col": 3,
+      "type": "frontend",
+      "label": "Solicitud recibida",
+      "sublabel": "volver a /login"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "POST /clinics/register"
+    }
+  ],
+  "edges": [
+    {
+      "from": "form",
+      "to": "datos"
+    },
+    {
+      "from": "datos",
+      "to": "enviar"
+    },
+    {
+      "from": "enviar",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "enviar",
+      "to": "exito",
+      "label": "registro creado"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Después del registro",
+      "items": [
+        "La solicitud queda pendiente de revisión por un superadministrador.",
+        "La revisión se hace en /clinicas (ver administracion-clinicas)."
+      ]
+    }
+  ],
+  "mainPath": [
+    "form",
+    "datos",
+    "enviar",
+    "exito"
+  ]
+}

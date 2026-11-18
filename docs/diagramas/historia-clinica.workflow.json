@@ -1,0 +1,161 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Módulo: historia clínica",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/historia-clinica.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de historia clínica"
+    },
+    {
+      "id": "api",
+      "label": "API clínica"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "entrada",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Historia clínica",
+      "sublabel": "/historia-clinica · view"
+    },
+    {
+      "id": "paciente",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Selección de paciente",
+      "sublabel": "búsqueda de pacientes"
+    },
+    {
+      "id": "registrar",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Nueva consulta",
+      "sublabel": "clinical_history.create"
+    },
+    {
+      "id": "detalle",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Detalle de consulta",
+      "sublabel": "antecedentes y evolución"
+    },
+    {
+      "id": "paginar",
+      "lane": "ui",
+      "col": 4,
+      "type": "frontend",
+      "label": "Historial paginado",
+      "sublabel": "límite y desplazamiento"
+    },
+    {
+      "id": "api_get",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "GET /patients"
+    },
+    {
+      "id": "api_post",
+      "lane": "api",
+      "col": 2,
+      "type": "backend",
+      "label": "POST /clinical-history"
+    },
+    {
+      "id": "api_detail",
+      "lane": "api",
+      "col": 3,
+      "type": "backend",
+      "label": "GET /clinical-history/{id}"
+    },
+    {
+      "id": "api_list",
+      "lane": "api",
+      "col": 4,
+      "type": "backend",
+      "label": "GET /clinical-history"
+    }
+  ],
+  "edges": [
+    {
+      "from": "entrada",
+      "to": "paciente"
+    },
+    {
+      "from": "paciente",
+      "to": "api_get",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "paciente",
+      "to": "registrar"
+    },
+    {
+      "from": "registrar",
+      "to": "api_post",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "registrar",
+      "to": "detalle"
+    },
+    {
+      "from": "detalle",
+      "to": "api_detail",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "detalle",
+      "to": "paginar"
+    },
+    {
+      "from": "paginar",
+      "to": "api_list",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Datos que consume",
+      "items": [
+        "Pacientes: GET /patients. Citas del paciente: GET /appointments?patient_id=…",
+        "Registros: GET /clinical-history con paginación y GET /clinical-history/{id}."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Escritura",
+      "items": [
+        "POST /clinical-history requiere clinical_history.create.",
+        "Los errores 422 se muestran por campo."
+      ]
+    }
+  ],
+  "mainPath": [
+    "entrada",
+    "paciente",
+    "registrar",
+    "detalle",
+    "paginar"
+  ]
+}

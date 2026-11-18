@@ -22,11 +22,15 @@ import { clampApiListLimit, clampApiListOffset } from '../utils/pagination.js';
  * @property {string|null} condition_name
  * @property {string|null} procedure_code
  * @property {string|null} procedure_name
+ * @property {string|null} cups_code
+ * @property {string|null} cups_name
  * @property {string|null} notes
  * @property {string} created_at
  * @property {number|null} created_by
  * @property {string|null} created_by_name
  */
+
+const CUPS_CODE_MAX_LENGTH = 20;
 
 const clean = (payload) =>
   Object.fromEntries(
@@ -48,17 +52,23 @@ export const getOdontogramHistory = (patientId, { toothFdi, limit = 50, offset =
   );
 
 /** POST /odontogram (permiso odontogram.create). Body: OdontogramEntryCreateIn. */
-export const createOdontogramEntry = (payload) =>
-  request('/odontogram', {
+export const createOdontogramEntry = (payload) => {
+  const procedureCode = String(payload.procedure_code ?? '').trim();
+  const cupsCode = String(payload.cups_code ?? '').trim().slice(0, CUPS_CODE_MAX_LENGTH);
+
+  return request('/odontogram', {
     method: 'POST',
     body: {
       ...clean({
         appointment_id: payload.appointment_id,
         tooth_fdi: payload.tooth_fdi,
         condition_code: payload.condition_code,
-        procedure_code: payload.procedure_code,
+        procedure_code: procedureCode || undefined,
+        // El contrato solo admite cups_code cuando se registra un procedimiento.
+        cups_code: procedureCode ? cupsCode || undefined : undefined,
         notes: payload.notes,
       }),
       surface: payload.surface ?? null,
     },
   });
+};

@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Administración: auditoría",
+    "locale": "es",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "docs/diagramas/administracion-auditoria.workflow.html"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Pantalla de auditoría"
+    },
+    {
+      "id": "api",
+      "label": "API de usuarios"
+    }
+  ],
+  "phases": [],
+  "groups": [],
+  "nodes": [
+    {
+      "id": "entrada",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Auditoría",
+      "sublabel": "/auditoria · audit.view"
+    },
+    {
+      "id": "cargar",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Cargar eventos",
+      "sublabel": "últimos 100 registros"
+    },
+    {
+      "id": "tabla",
+      "lane": "ui",
+      "col": 2,
+      "type": "frontend",
+      "label": "Tabla de acciones",
+      "sublabel": "actor · acción · fecha"
+    },
+    {
+      "id": "vacio",
+      "lane": "ui",
+      "col": 3,
+      "type": "frontend",
+      "label": "Sin registros",
+      "sublabel": "EmptyState"
+    },
+    {
+      "id": "api_get",
+      "lane": "api",
+      "col": 1,
+      "type": "backend",
+      "label": "GET /users/audit-log?limit=100"
+    }
+  ],
+  "edges": [
+    {
+      "from": "entrada",
+      "to": "cargar"
+    },
+    {
+      "from": "cargar",
+      "to": "api_get",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "cargar",
+      "to": "tabla"
+    },
+    {
+      "from": "tabla",
+      "to": "vacio",
+      "label": "sin datos",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Modo vista previa",
+      "items": [
+        "Con VITE_PREVIEW_MODE=true se muestran eventos de demostración.",
+        "La pantalla es de solo lectura: no edita ni borra registros."
+      ]
+    }
+  ],
+  "mainPath": [
+    "entrada",
+    "cargar",
+    "tabla"
+  ]
+}

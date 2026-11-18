@@ -220,3 +220,44 @@ test('el odontograma envía surface null para un diente completo', async () => {
     surface: null,
   });
 });
+
+test('el odontograma envía cups_code solo junto al procedimiento', async () => {
+  await createOdontogramEntry({
+    appointment_id: 31,
+    tooth_fdi: 16,
+    surface: 'oclusal',
+    procedure_code: ' 232102 ',
+    cups_code: ' 232102 ',
+  });
+  await createOdontogramEntry({
+    appointment_id: 31,
+    tooth_fdi: 16,
+    surface: null,
+    condition_code: 'C1',
+    cups_code: '232102',
+  });
+  await createOdontogramEntry({ appointment_id: 31, tooth_fdi: 16, surface: null, procedure_code: '232102' });
+  await createOdontogramEntry({
+    appointment_id: 31,
+    tooth_fdi: 16,
+    surface: null,
+    procedure_code: '232102',
+    cups_code: '123456789012345678901234',
+  });
+
+  assert.deepEqual(calls[0].body, {
+    appointment_id: 31,
+    tooth_fdi: 16,
+    surface: 'oclusal',
+    procedure_code: '232102',
+    cups_code: '232102',
+  });
+  assert.deepEqual(calls[1].body, {
+    appointment_id: 31,
+    tooth_fdi: 16,
+    surface: null,
+    condition_code: 'C1',
+  });
+  assert.equal('cups_code' in calls[2].body, false);
+  assert.equal(calls[3].body.cups_code, '12345678901234567890');
+});

@@ -44,6 +44,22 @@ test('400 y 409 de pacientes se asocian al campo correspondiente', () => {
   });
 });
 
+test('400 y 422 de cups_code se asocian al campo CUPS', () => {
+  const invalid = new ApiError({ status: 400, detail: 'cups_code invalido o no vigente: 999999' });
+  const required = new ApiError({
+    status: 422,
+    detail: 'cups_code es obligatorio cuando se registra un procedimiento',
+  });
+  const onlyProcedure = new ApiError({
+    status: 422,
+    detail: 'cups_code solo aplica cuando se registra un procedimiento (procedure_code)',
+  });
+
+  assert.match(invalid.fieldErrors.cups_code, /no es válido o no está vigente/i);
+  assert.match(required.fieldErrors.cups_code, /Selecciona el código CUPS/i);
+  assert.match(onlyProcedure.fieldErrors.cups_code, /solo aplica/i);
+});
+
 test('mensajes por defecto en español para 409, 423 y red', () => {
   assert.match(new ApiError({ status: 409 }).message, /conflicto|existe/i);
   assert.match(new ApiError({ status: 423 }).message, /bloqueada/);
